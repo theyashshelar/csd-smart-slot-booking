@@ -52,4 +52,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             LocalDate bookingDate,
             BookingStatus status
     );
+
+    Optional<Booking> findFirstByToken(String token);
+
+    Optional<Booking> findFirstByMemberMobileNumberOrderByBookingDateDesc(
+            String mobileNumber
+    );
+
+    Optional<Booking> findFirstByMemberGroceryCardNumberOrderByBookingDateDesc(
+            String groceryCardNumber
+    );
+
+    Optional<Booking> findFirstByMemberLiquorCardNumberOrderByBookingDateDesc(
+            String liquorCardNumber
+    );
 }

@@ -1,5 +1,6 @@
 package com.csd.backend.service;
 
+import com.csd.backend.dto.OperatorSearchResponse;
 import com.csd.backend.entity.AuditLog;
 import com.csd.backend.entity.Booking;
 import com.csd.backend.entity.BookingStatus;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,9 +21,7 @@ public class OperatorService {
     private final BookingRepository bookingRepository;
     private final AuditLogRepository auditLogRepository;
 
-    /**
-     * Today's Queue
-     */
+    // Today's Queue
     public List<Booking> getQueue() {
 
         return bookingRepository.findByStatus(
@@ -29,9 +29,60 @@ public class OperatorService {
         );
     }
 
-    /**
-     * Search Booking by Token
-     */
+    // Search Booking (Manual + QR)
+    public OperatorSearchResponse searchBooking(
+            String token,
+            String mobileNumber,
+            String cardNumber
+    ) {
+
+        Optional<Booking> booking = Optional.empty();
+
+        if (token != null && !token.isBlank()) {
+
+            booking = bookingRepository.findFirstByToken(token);
+
+        } else if (mobileNumber != null && !mobileNumber.isBlank()) {
+
+            booking = bookingRepository
+                    .findFirstByMemberMobileNumberOrderByBookingDateDesc(
+                            mobileNumber
+                    );
+
+        } else if (cardNumber != null && !cardNumber.isBlank()) {
+
+            booking = bookingRepository
+                    .findFirstByMemberGroceryCardNumberOrderByBookingDateDesc(
+                            cardNumber
+                    );
+
+            if (booking.isEmpty()) {
+
+                booking = bookingRepository
+                        .findFirstByMemberLiquorCardNumberOrderByBookingDateDesc(
+                                cardNumber
+                        );
+            }
+        }
+
+        Booking result = booking.orElseThrow(
+                () -> new IllegalArgumentException("Booking not found.")
+        );
+
+        return OperatorSearchResponse.builder()
+                .bookingId(result.getId())
+                .memberName(result.getMember().getFullName())
+                .mobileNumber(result.getMember().getMobileNumber())
+                .groceryCardNumber(result.getMember().getGroceryCardNumber())
+                .liquorCardNumber(result.getMember().getLiquorCardNumber())
+                .token(result.getToken())
+                .slotLabel(result.getSlot().getLabel())
+                .status(result.getStatus())
+                .bookingType(result.getSlot().getCardType().name())
+                .build();
+    }
+
+    // Search Booking by Token
     public Booking getBookingByToken(String token) {
 
         return bookingRepository.findByToken(token)
@@ -39,9 +90,8 @@ public class OperatorService {
                         new IllegalArgumentException(
                                 "Booking not found"));
     }
-    /**
-     * Check In
-     */
+
+    // Check In
     @Transactional
     public Booking checkIn(Long bookingId) {
 
@@ -58,8 +108,7 @@ public class OperatorService {
         booking.setStatus(BookingStatus.CHECKED_IN);
         booking.setCheckedInAt(LocalDateTime.now());
 
-        Booking savedBooking =
-                bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
 
         auditLogRepository.save(
                 log(
@@ -72,9 +121,7 @@ public class OperatorService {
         return savedBooking;
     }
 
-    /**
-     * Check Out
-     */
+    // Check Out
     @Transactional
     public Booking checkOut(Long bookingId) {
 
@@ -91,8 +138,7 @@ public class OperatorService {
         booking.setStatus(BookingStatus.CHECKED_OUT);
         booking.setCheckedOutAt(LocalDateTime.now());
 
-        Booking savedBooking =
-                bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
 
         auditLogRepository.save(
                 log(
@@ -104,9 +150,8 @@ public class OperatorService {
 
         return savedBooking;
     }
-    /**
-     * Cancel Booking
-     */
+
+    // Cancel Booking
     @Transactional
     public Booking cancel(Long bookingId) {
 
@@ -122,8 +167,7 @@ public class OperatorService {
 
         booking.setStatus(BookingStatus.CANCELLED);
 
-        Booking savedBooking =
-                bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
 
         auditLogRepository.save(
                 log(
@@ -136,9 +180,7 @@ public class OperatorService {
         return savedBooking;
     }
 
-    /**
-     * Audit Log
-     */
+    // Audit Log
     private AuditLog log(
             String actor,
             String action,
@@ -152,5 +194,4 @@ public class OperatorService {
 
         return auditLog;
     }
-
 }

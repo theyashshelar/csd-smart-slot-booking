@@ -1,5 +1,6 @@
 package com.csd.backend.controller;
 
+import com.csd.backend.dto.OperatorSearchResponse;
 import com.csd.backend.entity.Booking;
 import com.csd.backend.service.OperatorService;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +17,7 @@ public class OperatorController {
 
     private final OperatorService operatorService;
 
-    /**
-     * Today's Queue
-     */
+    //Today's Queue
     @GetMapping("/queue")
     public ResponseEntity<List<Booking>> getQueue() {
 
@@ -27,9 +26,27 @@ public class OperatorController {
         );
     }
 
-    /**
-     * Search Booking By Token
-     */
+    //Manual Search & QR Search
+    @GetMapping("/search")
+    public ResponseEntity<OperatorSearchResponse> searchBooking(
+
+            @RequestParam(required = false) String token,
+
+            @RequestParam(required = false) String mobileNumber,
+
+            @RequestParam(required = false) String cardNumber
+    ) {
+
+        return ResponseEntity.ok(
+                operatorService.searchBooking(
+                        token,
+                        mobileNumber,
+                        cardNumber
+                )
+        );
+    }
+
+    //Search Booking By Token (Used by QR Scanner)
     @GetMapping("/booking/{token}")
     public ResponseEntity<Booking> getBooking(
             @PathVariable String token) {
@@ -39,9 +56,7 @@ public class OperatorController {
         );
     }
 
-    /**
-     * Check In
-     */
+    //Check In
     @PostMapping("/check-in/{bookingId}")
     public ResponseEntity<Booking> checkIn(
             @PathVariable Long bookingId) {
@@ -51,9 +66,7 @@ public class OperatorController {
         );
     }
 
-    /**
-     * Check Out
-     */
+    //Check Out
     @PostMapping("/check-out/{bookingId}")
     public ResponseEntity<Booking> checkOut(
             @PathVariable Long bookingId) {
@@ -63,9 +76,7 @@ public class OperatorController {
         );
     }
 
-    /**
-     * Cancel Booking
-     */
+    //Cancel Booking
     @PostMapping("/cancel/{bookingId}")
     public ResponseEntity<Booking> cancelBooking(
             @PathVariable Long bookingId) {
@@ -74,5 +85,4 @@ public class OperatorController {
                 operatorService.cancel(bookingId)
         );
     }
-
 }
