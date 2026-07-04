@@ -49,9 +49,10 @@ public class CustomerService {
     }
 
     //Available Slots
-    public List<Slot> getAvailableSlots() {
+    public List<Slot> getAvailableSlots(CardType cardType) {
 
-        return slotRepository.findByActiveTrueOrderByStartTimeAsc();
+        return slotRepository
+                .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType);
     }
 
     //Create Booking
@@ -65,6 +66,12 @@ public class CustomerService {
         Slot slot = slotRepository.findById(request.slotId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Slot not found"));
+
+        if (slot.getCardType() != request.cardType()) {
+            throw new IllegalArgumentException(
+                    "Selected slot does not match card type."
+            );
+        }
 
         boolean alreadyBooked = bookingRepository
                 .existsByMemberIdAndBookingDate(
@@ -118,18 +125,14 @@ public class CustomerService {
         return savedBooking;
     }
 
-    /**
-     * Booking History
-     */
+    //Booking History
     public List<Booking> getBookingsForMember(Long memberId) {
 
         return bookingRepository
                 .findByMemberIdOrderByBookingDateDesc(memberId);
     }
 
-    /**
-     * Track Booking
-     */
+    //Track Booking
     public List<Booking> trackBookings(String mobileNumber) {
 
         Member member = memberRepository
@@ -141,9 +144,7 @@ public class CustomerService {
                 .findByMemberIdOrderByBookingDateDesc(member.getId());
     }
 
-    /**
-     * Audit Log Helper
-     */
+    //Audit Log Helper
     private AuditLog log(
             String actor,
             String action,

@@ -4,6 +4,7 @@ import com.csd.backend.dto.BookingRequest;
 import com.csd.backend.dto.VerificationRequest;
 import com.csd.backend.dto.VerificationResponse;
 import com.csd.backend.entity.Booking;
+import com.csd.backend.entity.CardType;
 import com.csd.backend.entity.Slot;
 import com.csd.backend.service.CustomerService;
 import jakarta.validation.Valid;
@@ -32,11 +33,12 @@ public class CustomerController {
     }
 
     //Available Slots
-    @GetMapping("/slots")
-    public ResponseEntity<List<Slot>> getAvailableSlots() {
+    @GetMapping("/slots/{cardType}")
+    public ResponseEntity<List<Slot>> getAvailableSlots(
+            @PathVariable CardType cardType) {
 
         return ResponseEntity.ok(
-                customerService.getAvailableSlots()
+                customerService.getAvailableSlots(cardType)
         );
     }
 
