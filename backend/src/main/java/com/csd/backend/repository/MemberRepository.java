@@ -1,6 +1,7 @@
 package com.csd.backend.repository;
 
 import com.csd.backend.entity.Member;
+import com.csd.backend.entity.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -19,5 +20,13 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findByFullNameContainingIgnoreCaseOrMobileNumberContainingIgnoreCase(
             String fullName,
             String mobileNumber
+    );
+
+    List<Member> findByRegistrationStatus(
+            RegistrationStatus registrationStatus
+    );
+
+    long countByRegistrationStatus(
+            RegistrationStatus registrationStatus
     );
 }

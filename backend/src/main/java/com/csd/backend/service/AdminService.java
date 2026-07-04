@@ -342,4 +342,62 @@ public class AdminService {
         return auditLog;
     }
 
+    //Get Pending Approval Members
+    public List<Member> getPendingMembers() {
+
+        return memberRepository.findByRegistrationStatus(
+                RegistrationStatus.PENDING
+        );
+    }
+
+    //Approve Members
+    @Transactional
+    public Member approveMember(Long id) {
+
+        Member member = memberRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Member not found"));
+
+        member.setRegistrationStatus(
+                RegistrationStatus.APPROVED
+        );
+
+        Member saved = memberRepository.save(member);
+
+        auditLogRepository.save(
+                log(
+                        "ADMIN",
+                        "APPROVE_MEMBER",
+                        saved.getMobileNumber()
+                )
+        );
+
+        return saved;
+    }
+
+    //Reject Members
+    @Transactional
+    public Member rejectMember(Long id) {
+
+        Member member = memberRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Member not found"));
+
+        member.setRegistrationStatus(
+                RegistrationStatus.REJECTED
+        );
+
+        Member saved = memberRepository.save(member);
+
+        auditLogRepository.save(
+                log(
+                        "ADMIN",
+                        "REJECT_MEMBER",
+                        saved.getMobileNumber()
+                )
+        );
+
+        return saved;
+    }
+
 }

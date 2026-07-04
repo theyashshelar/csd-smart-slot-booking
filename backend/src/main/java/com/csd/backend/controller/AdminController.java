@@ -30,9 +30,7 @@ public class AdminController {
     private final ReportService reportService;
     private final ExcelService excelService;
 
-    /**
-     * Dashboard
-     */
+    //Dashboard
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStats> dashboard() {
 
@@ -41,9 +39,7 @@ public class AdminController {
         );
     }
 
-    /**
-     * Members
-     */
+    //Members
     @GetMapping("/members")
     public ResponseEntity<List<Member>> members(
             @RequestParam(required = false) String q) {
@@ -81,9 +77,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Slots
-     */
+    //Slots
     @GetMapping("/slots")
     public ResponseEntity<List<Slot>> slots() {
 
@@ -130,9 +124,7 @@ public class AdminController {
         );
     }
 
-    /**
-     * Settings
-     */
+    //Settings
     @GetMapping("/settings")
     public ResponseEntity<List<Settings>> settings() {
 
@@ -151,9 +143,7 @@ public class AdminController {
         );
     }
 
-    /**
-     * Import Members
-     */
+    //Import Members
     @PostMapping("/import-members")
     public ResponseEntity<String> importMembers(
             @RequestParam MultipartFile file) {
@@ -165,9 +155,7 @@ public class AdminController {
         );
     }
 
-    /**
-     * Export Members
-     */
+    //Export Members
     @GetMapping("/export-members")
     public ResponseEntity<byte[]> exportMembers()
             throws IOException {
@@ -184,9 +172,7 @@ public class AdminController {
                 .body(data);
     }
 
-    /**
-     * Export Slots
-     */
+    //Export Slots
     @GetMapping("/export-slots")
     public ResponseEntity<byte[]> exportSlots()
             throws IOException {
@@ -203,9 +189,7 @@ public class AdminController {
                 .body(data);
     }
 
-    /**
-     * Reports
-     */
+    //Reports
     @GetMapping("/reports/{period}")
     public ResponseEntity<ReportResponse> reports(
             @PathVariable String period) {
@@ -230,6 +214,35 @@ public class AdminController {
                 .contentType(
                         MediaType.APPLICATION_OCTET_STREAM)
                 .body(data);
+    }
+
+    //Get Pending Approval Members
+    @GetMapping("/members/pending")
+    public ResponseEntity<List<Member>> getPendingMembers() {
+
+        return ResponseEntity.ok(
+                adminService.getPendingMembers()
+        );
+    }
+
+    //Approve Members
+    @PutMapping("/members/{id}/approve")
+    public ResponseEntity<Member> approveMember(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                adminService.approveMember(id)
+        );
+    }
+
+    //Reject Members
+    @PutMapping("/members/{id}/reject")
+    public ResponseEntity<Member> rejectMember(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                adminService.rejectMember(id)
+        );
     }
 
 }
