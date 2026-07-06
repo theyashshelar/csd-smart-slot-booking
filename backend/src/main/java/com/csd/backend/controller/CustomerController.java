@@ -1,8 +1,6 @@
 package com.csd.backend.controller;
 
-import com.csd.backend.dto.BookingRequest;
-import com.csd.backend.dto.VerificationRequest;
-import com.csd.backend.dto.VerificationResponse;
+import com.csd.backend.dto.*;
 import com.csd.backend.entity.Booking;
 import com.csd.backend.entity.CardType;
 import com.csd.backend.entity.Slot;
@@ -70,5 +68,37 @@ public class CustomerController {
         return ResponseEntity.ok(
                 customerService.trackBookings(mobileNumber)
         );
+    }
+
+    //Get Customer Profile
+    @GetMapping("/profile/{memberId}")
+    public ResponseEntity<CustomerProfileResponse> getProfile(
+            @PathVariable Long memberId) {
+
+        return ResponseEntity.ok(
+                customerService.getProfile(memberId)
+        );
+    }
+
+    //Update Customer Profile
+    @PutMapping("/profile/{memberId}")
+    public ResponseEntity<CustomerProfileResponse> updateProfile(
+            @PathVariable Long memberId,
+            @Valid @RequestBody UpdateCustomerProfileRequest request) {
+
+        return ResponseEntity.ok(
+                customerService.updateProfile(memberId, request)
+        );
+    }
+
+    //Change Password
+    @PutMapping("/change-password/{memberId}")
+    public ResponseEntity<String> changePassword(
+            @PathVariable Long memberId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        customerService.changePassword(memberId, request);
+
+        return ResponseEntity.ok("Password changed successfully.");
     }
 }

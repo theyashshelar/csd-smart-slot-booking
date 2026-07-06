@@ -155,10 +155,7 @@ public class AdminService {
     public void deleteMember(Long id) {
 
         boolean hasBookings =
-                bookingRepository.existsByMemberIdAndBookingDate(
-                        id,
-                        LocalDate.now()
-                );
+                bookingRepository.existsByMemberId(id);
 
         if (hasBookings) {
             throw new IllegalStateException(
@@ -175,6 +172,7 @@ public class AdminService {
                 )
         );
     }
+
     //Get All Active Slots
     public List<Slot> getSlots() {
 

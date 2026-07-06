@@ -1,8 +1,6 @@
 package com.csd.backend.service;
 
-import com.csd.backend.dto.BookingRequest;
-import com.csd.backend.dto.VerificationRequest;
-import com.csd.backend.dto.VerificationResponse;
+import com.csd.backend.dto.*;
 import com.csd.backend.entity.*;
 import com.csd.backend.repository.AuditLogRepository;
 import com.csd.backend.repository.BookingRepository;
@@ -11,8 +9,10 @@ import com.csd.backend.repository.SlotRepository;
 import com.csd.backend.util.QRCodeGenerator;
 import com.csd.backend.util.TokenGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +28,52 @@ public class CustomerService {
     private final SmsService smsService;
     private final QRCodeGenerator qrCodeGenerator;
     private final TokenGenerator tokenGenerator;
+    private final PasswordEncoder passwordEncoder;
+
+
+    //Password Validation for Update Password
+    @Transactional
+    public void changePassword(Long memberId,
+                               ChangePasswordRequest request) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Member not found"));
+
+        // Old password validation
+        if (!passwordEncoder.matches(
+                request.oldPassword(),
+                member.getPassword())) {
+
+            throw new IllegalArgumentException(
+                    "Old password is incorrect."
+            );
+        }
+
+        // New password validation
+        if (!request.newPassword().equals(request.confirmPassword())) {
+
+            throw new IllegalArgumentException(
+                    "New password and confirm password do not match."
+            );
+        }
+
+        // Save new password
+        member.setPassword(
+                passwordEncoder.encode(request.newPassword())
+        );
+
+        memberRepository.save(member);
+
+        auditLogRepository.save(
+                log(
+                        member.getMobileNumber(),
+                        "CHANGE_PASSWORD",
+                        "Customer changed password"
+                )
+        );
+    }
+
 
     //Verify Member
     public VerificationResponse verifyMember(VerificationRequest request) {
@@ -177,5 +223,55 @@ public class CustomerService {
         auditLog.setDetails(details);
 
         return auditLog;
+    }
+
+    //Get Customer Profile
+    public CustomerProfileResponse getProfile(Long memberId) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Member not found"));
+
+        return CustomerProfileResponse.builder()
+                .id(member.getId())
+                .fullName(member.getFullName())
+                .mobileNumber(member.getMobileNumber())
+                .dateOfBirth(member.getDateOfBirth())
+                .groceryCardNumber(member.getGroceryCardNumber())
+                .liquorCardNumber(member.getLiquorCardNumber())
+                .registrationStatus(member.getRegistrationStatus())
+                .build();
+    }
+
+    //Update Customer Profile
+    @Transactional
+    public CustomerProfileResponse updateProfile(Long memberId, UpdateCustomerProfileRequest request) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Member not found"));
+
+        member.setFullName(request.fullName());
+        member.setMobileNumber(request.mobileNumber());
+
+        Member saved = memberRepository.save(member);
+
+        auditLogRepository.save(
+                log(
+                        member.getMobileNumber(),
+                        "UPDATE_PROFILE",
+                        "Customer updated profile"
+                )
+        );
+
+        return CustomerProfileResponse.builder()
+                .id(saved.getId())
+                .fullName(saved.getFullName())
+                .mobileNumber(saved.getMobileNumber())
+                .dateOfBirth(saved.getDateOfBirth())
+                .groceryCardNumber(saved.getGroceryCardNumber())
+                .liquorCardNumber(saved.getLiquorCardNumber())
+                .registrationStatus(saved.getRegistrationStatus())
+                .build();
     }
 }

@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
+    boolean existsByMemberId(Long memberId);
+
     boolean existsByMemberIdAndBookingDateAndSlot_CardType(
             Long memberId,
             LocalDate bookingDate,
