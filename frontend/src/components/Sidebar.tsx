@@ -35,7 +35,7 @@ const operatorItems = [
 
 const customerItems = [
     { label: 'Dashboard', to: '/customer/dashboard', icon: DashboardRounded },
-    { label: 'Book Slot', to: '/book-slot', icon: CalendarMonthRounded },
+    { label: 'Book Slot', to: '/customer/book-slot', icon: CalendarMonthRounded },
     { label: 'Booking History', to: '/customer/history', icon: HistoryRounded },
     { label: 'Profile', to: '/customer/profile', icon: PersonRounded },
     { label: 'Change Password', to: '/customer/change-password', icon: LockRounded },

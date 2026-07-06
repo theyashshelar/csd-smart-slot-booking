@@ -19,6 +19,7 @@ import CustomerDashboardPage from '../pages/customer/CustomerDashboardPage'
 import ProfilePage from '../pages/customer/ProfilePage'
 import BookingHistoryPage from '../pages/customer/BookingHistoryPage'
 import ChangePasswordPage from '../pages/customer/ChangePasswordPage'
+import CustomerBookSlotPage from '../pages/customer/CustomerBookSlotPage'
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: '/customer/profile', element: <ProfilePage /> },
       { path: '/customer/history', element: <BookingHistoryPage /> },
       { path: '/customer/change-password', element: <ChangePasswordPage /> },
+      {path: '/customer/book-slot', element: <CustomerBookSlotPage /> },
     ],
   },
 ])

@@ -70,4 +70,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findFirstByMemberLiquorCardNumberOrderByBookingDateDesc(
             String liquorCardNumber
     );
+
+    List<Booking> findByStatusIn(List<BookingStatus> booked);
 }

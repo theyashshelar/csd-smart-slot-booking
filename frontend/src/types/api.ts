@@ -13,17 +13,18 @@ export interface Member {
 }
 
 export interface Slot {
-  id: number;
-  label?: string | null;
-  startTime?: string | null;
-  endTime?: string | null;
-  capacity?: number | null;
-  bookedCount?: number | null;
-  active?: boolean | null;
+  id: number
+  label: string
+  cardType: 'GROCERY' | 'LIQUOR'
+  startTime: string
+  endTime: string
+  capacity: number
+  bookedCount: number
+  active: boolean
 }
 
 export interface Booking {
-  bookingId: number
+  id: number
   bookingDate: string
   token: string
   cardType: 'GROCERY' | 'LIQUOR'
@@ -70,4 +71,39 @@ export interface SettingsItem {
   id?: number;
   keyName: string;
   settingValue?: string | null;
+}
+
+export interface OperatorSearchResponse {
+  bookingId: number
+  memberName: string
+  mobileNumber: string
+  groceryCardNumber: string
+  liquorCardNumber: string
+  token: string
+  slotLabel: string
+  status: string
+  bookingType: string
+}
+
+export interface OperatorBooking {
+  id: number
+  token: string
+  bookingDate: string
+  status: string
+  member: {
+    id: number
+    fullName: string
+    mobileNumber: string
+    groceryCardNumber: string
+    liquorCardNumber: string
+  }
+
+  slot: {
+    id: number
+    label: string
+    cardType: string
+    startTime: string
+    endTime: string
+  }
+
 }

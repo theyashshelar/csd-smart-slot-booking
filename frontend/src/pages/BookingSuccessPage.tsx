@@ -4,37 +4,189 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { CheckCircleRounded, DownloadRounded, HomeRounded } from '@mui/icons-material'
-import { Link as RouterLink, useLocation } from 'react-router-dom'
+import Chip from '@mui/material/Chip'
+import Divider from '@mui/material/Divider'
+import QRCode from 'react-qr-code'
+import {
+  CheckCircleRounded,
+  DownloadRounded,
+  HomeRounded,
+  HistoryRounded,
+} from '@mui/icons-material'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 
 export default function BookingSuccessPage() {
   const location = useLocation()
+  const navigate = useNavigate()
+
   const booking = location.state?.booking
+  const slot = location.state?.slot
+  const cardType = location.state?.cardType
+
+  if (!booking) {
+    navigate('/customer/dashboard')
+    return null
+  }
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-      <Card sx={{ maxWidth: 640, width: '100%', textAlign: 'center', p: 2 }}>
-        <CardContent>
-          <Stack spacing={3} sx={{ alignItems: 'center' }}>
-            <CheckCircleRounded sx={{ fontSize: 80, color: 'success.main' }} />
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>Booking Confirmed</Typography>
-              <Typography color="text.secondary">Your slot has been reserved successfully. Please keep the token safe.</Typography>
-            </Box>
-            <Box sx={{ p: 3, borderRadius: 3, bgcolor: 'primary.main', color: 'white', width: '100%' }}>
-              <Typography variant="caption">Token Number</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 800 }}>{booking?.token || 'Pending'}</Typography>
-            </Box>
-            <Box sx={{ width: 180, height: 180, borderRadius: 3, bgcolor: 'grey.100', display: 'grid', placeItems: 'center' }}>
-              <Typography variant="h6">QR Code</Typography>
-            </Box>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <Button variant="contained" startIcon={<DownloadRounded />}>Download Token</Button>
-              <Button component={RouterLink} to="/" variant="outlined" startIcon={<HomeRounded />}>Back Home</Button>
+      <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            py: 5,
+          }}
+      >
+        <Card
+            sx={{
+              maxWidth: 700,
+              width: '100%',
+              borderRadius: 4,
+            }}
+        >
+          <CardContent>
+
+            <Stack spacing={4} alignItems="center">
+
+              <CheckCircleRounded
+                  sx={{
+                    fontSize: 90,
+                    color: 'success.main',
+                  }}
+              />
+
+              <Box textAlign="center">
+                <Typography
+                    variant="h4"
+                    fontWeight={700}
+                >
+                  Booking Confirmed
+                </Typography>
+
+                <Typography color="text.secondary">
+                  Your slot has been reserved successfully.
+                </Typography>
+              </Box>
+
+              <Box
+                  sx={{
+                    width: '100%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    borderRadius: 3,
+                    p: 4,
+                  }}
+              >
+                <Stack spacing={2}>
+
+                  <Typography variant="caption">
+                    TOKEN NUMBER
+                  </Typography>
+
+                  <Typography
+                      variant="h3"
+                      fontWeight={800}
+                  >
+                    {booking.token}
+                  </Typography>
+
+                  <Divider
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.25)',
+                      }}
+                  />
+
+                  <Typography>
+                    <strong>Booking Date :</strong>{' '}
+                    {booking.bookingDate}
+                  </Typography>
+
+                  <Typography>
+                    <strong>Slot :</strong>{' '}
+                    {slot?.label}
+                  </Typography>
+
+                  <Typography>
+                    <strong>Time :</strong>{' '}
+                    {slot?.startTime} - {slot?.endTime}
+                  </Typography>
+
+                  <Typography>
+                    <strong>Card Type :</strong>{' '}
+                    {cardType}
+                  </Typography>
+
+                  <Box>
+
+                    <Typography
+                        variant="body2"
+                        gutterBottom
+                    >
+                      Booking Status
+                    </Typography>
+
+                    <Chip
+                        color="success"
+                        label={booking.status}
+                    />
+
+                  </Box>
+
+                </Stack>
+              </Box>
+
+                <Box
+                    sx={{
+                        bgcolor: "white",
+                        p: 3,
+                        borderRadius: 3,
+                        display: "inline-flex",
+                    }}
+                >
+                    <QRCode
+                        value={booking?.token || ""}
+                        size={180}
+                    />
+                </Box>
+                
+              <Stack
+                  direction={{
+                    xs: 'column',
+                    sm: 'row',
+                  }}
+                  spacing={2}
+              >
+
+                <Button
+                    variant="contained"
+                    startIcon={<DownloadRounded />}
+                >
+                  Download QR
+                </Button>
+
+                <Button
+                    component={RouterLink}
+                    to="/customer/history"
+                    variant="outlined"
+                    startIcon={<HistoryRounded />}
+                >
+                  Booking History
+                </Button>
+
+                <Button
+                    component={RouterLink}
+                    to="/customer/dashboard"
+                    variant="outlined"
+                    startIcon={<HomeRounded />}
+                >
+                  Dashboard
+                </Button>
+
+              </Stack>
+
             </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Box>
+
+          </CardContent>
+        </Card>
+      </Box>
   )
 }
