@@ -4,8 +4,10 @@ import com.csd.backend.dto.OperatorSearchResponse;
 import com.csd.backend.entity.AuditLog;
 import com.csd.backend.entity.Booking;
 import com.csd.backend.entity.BookingStatus;
+import com.csd.backend.entity.Slot;
 import com.csd.backend.repository.AuditLogRepository;
 import com.csd.backend.repository.BookingRepository;
+import com.csd.backend.repository.SlotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ public class OperatorService {
 
     private final BookingRepository bookingRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SlotRepository slotRepository;
 
     // Today's Queue
     public List<Booking> getQueue() {
@@ -165,7 +168,19 @@ public class OperatorService {
                     "Booking already cancelled");
         }
 
+        if (booking.getStatus() == BookingStatus.CHECKED_OUT) {
+            throw new IllegalStateException(
+                    "Checked out booking cannot be cancelled");
+        }
+
         booking.setStatus(BookingStatus.CANCELLED);
+
+        Slot slot = booking.getSlot();
+
+        if (slot.getBookedCount() > 0) {
+            slot.setBookedCount(slot.getBookedCount() - 1);
+            slotRepository.save(slot);
+        }
 
         Booking savedBooking = bookingRepository.save(booking);
 
