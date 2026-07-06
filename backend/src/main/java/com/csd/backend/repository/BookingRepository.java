@@ -2,6 +2,7 @@ package com.csd.backend.repository;
 
 import com.csd.backend.entity.Booking;
 import com.csd.backend.entity.BookingStatus;
+import com.csd.backend.entity.CardType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -10,9 +11,10 @@ import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    boolean existsByMemberIdAndBookingDate(
+    boolean existsByMemberIdAndBookingDateAndSlot_CardType(
             Long memberId,
-            LocalDate bookingDate
+            LocalDate bookingDate,
+            CardType cardType
     );
 
     List<Booking> findByBookingDate(LocalDate bookingDate);

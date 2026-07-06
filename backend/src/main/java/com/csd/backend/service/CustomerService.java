@@ -73,19 +73,39 @@ public class CustomerService {
             );
         }
 
-        boolean alreadyBooked = bookingRepository
-                .existsByMemberIdAndBookingDate(
-                        member.getId(),
-                        LocalDate.now());
+        if (request.cardType() == CardType.GROCERY
+                && (member.getGroceryCardNumber() == null
+                || member.getGroceryCardNumber().isBlank())) {
 
-        if (alreadyBooked) {
             throw new IllegalStateException(
-                    "Member has already booked today");
+                    "No Grocery card is registered for this member."
+            );
         }
 
-        if (slot.getBookedCount() >= slot.getCapacity()) {
+        if (request.cardType() == CardType.LIQUOR
+                && (member.getLiquorCardNumber() == null
+                || member.getLiquorCardNumber().isBlank())) {
+
             throw new IllegalStateException(
-                    "Selected slot is full");
+                    "No Liquor card is registered for this member."
+            );
+        }
+
+        boolean alreadyBooked = bookingRepository
+                .existsByMemberIdAndBookingDateAndSlot_CardType(
+                        member.getId(),
+                        LocalDate.now(),
+                        request.cardType()
+                );
+
+        if (alreadyBooked) {
+
+            throw new IllegalStateException(
+
+                    request.cardType() == CardType.GROCERY
+                            ? "Grocery slot already booked for today."
+                            : "Liquor slot already booked for today."
+            );
         }
 
         Booking booking = new Booking();
