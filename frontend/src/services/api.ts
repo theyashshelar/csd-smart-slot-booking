@@ -18,9 +18,8 @@ api.interceptors.request.use((config) => {
 
 export default api
 
-/////////////////////////////////////////////////////////
+
 // AUTH
-/////////////////////////////////////////////////////////
 
 export const adminLogin = (data: { username: string; password: string }) =>
   api.post('/api/auth/admin/login', data)
@@ -31,16 +30,11 @@ export const operatorLogin = (data: { username: string; password: string }) =>
 export const customerLogin = (data: { username: string; password: string }) =>
   api.post('/api/auth/customer/login', data)
 
-/////////////////////////////////////////////////////////
 // ADMIN DASHBOARD
-/////////////////////////////////////////////////////////
 
 export const getDashboard = () => api.get('/api/admin/dashboard')
 
-/////////////////////////////////////////////////////////
 // MEMBERS
-/////////////////////////////////////////////////////////
-
 export const getMembers = (q?: string) =>
   api.get('/api/admin/members', {
     params: { q },
@@ -53,9 +47,7 @@ export const updateMember = (id: number, data: unknown) =>
 
 export const deleteMember = (id: number) => api.delete(`/api/admin/members/${id}`)
 
-/////////////////////////////////////////////////////////
 // SLOTS
-/////////////////////////////////////////////////////////
 
 export const getSlotsAdmin = () => api.get('/api/admin/slots')
 
@@ -68,24 +60,18 @@ export const deleteSlot = (id: number) => api.delete(`/api/admin/slots/${id}`)
 export const changeSlotStatus = (id: number, active: boolean) =>
   api.put(`/api/admin/slots/${id}/status?active=${active}`)
 
-/////////////////////////////////////////////////////////
 // SETTINGS
-/////////////////////////////////////////////////////////
 
 export const getSettings = () => api.get('/api/admin/settings')
 
 export const saveSettings = (keyName: string, value: string) =>
   api.post(`/api/admin/settings?keyName=${keyName}&value=${value}`)
 
-/////////////////////////////////////////////////////////
 // REPORTS
-/////////////////////////////////////////////////////////
 
 export const getReport = (period: string) => api.get(`/api/admin/reports/${period}`)
 
-/////////////////////////////////////////////////////////
 // EXCEL
-/////////////////////////////////////////////////////////
 
 export const importMembers = (file: File) => {
   const formData = new FormData()
@@ -109,24 +95,54 @@ export const exportReport = (period: string) =>
     responseType: 'blob',
   })
 
-/////////////////////////////////////////////////////////
 // CUSTOMER
-/////////////////////////////////////////////////////////
 
-export const verifyMember = (data: { cardNumber: string; mobileNumber: string }) =>
-  api.post('/api/customer/verify', data)
+export const verifyMember = (mobileNumber: string) =>
+    api.post('/api/customer/verify', {
+        mobileNumber,
+    })
 
-export const getSlots = () => api.get('/api/customer/slots')
+export const getSlots = (
+    cardType: 'GROCERY' | 'LIQUOR'
+) =>
+    api.get(`/api/customer/slots/${cardType}`)
 
-export const createBooking = (data: { memberId: number; slotId: number }) =>
-  api.post('/api/customer/book', data)
+export const createBooking = (data: {
+    memberId: number
+    slotId: number
+    cardType: 'GROCERY' | 'LIQUOR'
+}) =>
+    api.post('/api/customer/book', data)
 
-export const getMemberBookings = (memberId: number) =>
-  api.get(`/api/customer/bookings/${memberId}`)
+export const getMemberBookings = (
+    memberId: number
+) =>
+    api.get(`/api/customer/history/${memberId}`)
 
-/////////////////////////////////////////////////////////
+export const getCustomerProfile = (memberId: number) =>
+    api.get(`/api/customer/profile/${memberId}`)
+
+export const updateCustomerProfile = (
+    memberId: number,
+    data: {
+        fullName: string
+        mobileNumber: string
+    }
+) =>
+    api.put(`/api/customer/profile/${memberId}`, data)
+
+export const changePassword = (
+    memberId: number,
+    data: {
+        oldPassword: string
+        newPassword: string
+        confirmPassword: string
+    }
+) =>
+    api.put(`/api/customer/change-password/${memberId}`, data)
+
+
 // OPERATOR
-/////////////////////////////////////////////////////////
 
 export const getQueue = () => api.get('/api/operator/queue')
 
@@ -139,10 +155,8 @@ export const checkOut = (bookingId: number) =>
 export const cancelBooking = (bookingId: number) =>
   api.post(`/api/operator/cancel/${bookingId}`)
 
-export const trackBooking = (cardNumber: string, mobileNumber: string) =>
-  api.get('/api/customer/track', {
-    params: {
-      cardNumber,
-      mobileNumber,
-    },
-  })
+export const trackBooking = (
+    mobileNumber: string
+) => {
+    return api.get(`/api/customer/track/${mobileNumber}`)
+}

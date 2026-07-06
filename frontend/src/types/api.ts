@@ -23,18 +23,24 @@ export interface Slot {
 }
 
 export interface Booking {
-  id: number;
-  token?: string | null;
-  bookingDate?: string | null;
-  bookingLabel?: string | null;
-  smsStatus?: string | null;
-  status?: string | null;
-  remarks?: string | null;
-  createdAt?: string | null;
-  checkedInAt?: string | null;
-  checkedOutAt?: string | null;
-  member?: Member;
-  slot?: Slot;
+  bookingId: number
+  bookingDate: string
+  token: string
+  cardType: 'GROCERY' | 'LIQUOR'
+  slot: string
+  status: string
+  checkedInAt: string | null
+  checkedOutAt: string | null
+}
+
+export interface CustomerProfile {
+  id: number
+  fullName: string
+  mobileNumber: string
+  dateOfBirth: string
+  groceryCardNumber: string | null
+  liquorCardNumber: string | null
+  registrationStatus: string
 }
 
 export interface DashboardStats {

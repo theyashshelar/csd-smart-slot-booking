@@ -91,6 +91,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 Role.ADMIN.name(),
+                admin.getUsername(),
+                null,
                 admin.getFullName()
         );
     }
@@ -114,6 +116,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 Role.OPERATOR.name(),
+                operator.getOperatorId(),
+                null,
                 operator.getFullName()
         );
     }
@@ -144,6 +148,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 Role.CUSTOMER.name(),
+                member.getMobileNumber(),
+                member.getId(),
                 member.getFullName()
         );
     }

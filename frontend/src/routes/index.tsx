@@ -14,6 +14,11 @@ import ReportsPage from '../pages/admin/ReportsPage'
 import SettingsPage from '../pages/admin/SettingsPage'
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
 import NotFoundPage from '../pages/NotFoundPage'
+import CustomerLoginPage from '../pages/customer/CustomerLoginPage.tsx'
+import CustomerDashboardPage from '../pages/customer/CustomerDashboardPage'
+import ProfilePage from '../pages/customer/ProfilePage'
+import BookingHistoryPage from '../pages/customer/BookingHistoryPage'
+import ChangePasswordPage from '../pages/customer/ChangePasswordPage'
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +31,7 @@ export const router = createBrowserRouter([
       { path: '/admin/login', element: <AdminLoginPage /> },
       { path: '/operator/login', element: <OperatorLoginPage /> },
       { path: '*', element: <NotFoundPage /> },
+      { path: '/customer/login', element: <CustomerLoginPage /> },
     ],
   },
   {
@@ -37,6 +43,10 @@ export const router = createBrowserRouter([
       { path: '/admin/reports', element: <ReportsPage /> },
       { path: '/admin/settings', element: <SettingsPage /> },
       { path: '/operator/dashboard', element: <OperatorDashboardPage /> },
+      { path: '/customer/dashboard', element: <CustomerDashboardPage /> },
+      { path: '/customer/profile', element: <ProfilePage /> },
+      { path: '/customer/history', element: <BookingHistoryPage /> },
+      { path: '/customer/change-password', element: <ChangePasswordPage /> },
     ],
   },
 ])
