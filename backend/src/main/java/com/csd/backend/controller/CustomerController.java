@@ -52,7 +52,7 @@ public class CustomerController {
 
     //Booking History
     @GetMapping("/history/{memberId}")
-    public ResponseEntity<List<Booking>> getBookingHistory(
+    public ResponseEntity<List<BookingHistoryResponse>> getBookingHistory(
             @PathVariable Long memberId) {
 
         return ResponseEntity.ok(
@@ -62,7 +62,7 @@ public class CustomerController {
 
     //Track Booking
     @GetMapping("/track/{mobileNumber}")
-    public ResponseEntity<List<Booking>> trackBookings(
+    public ResponseEntity<List<BookingHistoryResponse>> trackBookings(
             @PathVariable String mobileNumber) {
 
         return ResponseEntity.ok(

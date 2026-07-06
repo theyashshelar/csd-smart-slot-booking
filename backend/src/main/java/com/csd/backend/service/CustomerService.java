@@ -192,14 +192,26 @@ public class CustomerService {
     }
 
     //Booking History
-    public List<Booking> getBookingsForMember(Long memberId) {
+    public List<BookingHistoryResponse> getBookingsForMember(Long memberId) {
 
         return bookingRepository
-                .findByMemberIdOrderByBookingDateDesc(memberId);
+                .findByMemberIdOrderByBookingDateDesc(memberId)
+                .stream()
+                .map(booking -> BookingHistoryResponse.builder()
+                        .bookingId(booking.getId())
+                        .bookingDate(booking.getBookingDate())
+                        .token(booking.getToken())
+                        .cardType(booking.getSlot().getCardType())
+                        .slot(booking.getBookingLabel())
+                        .status(booking.getStatus())
+                        .checkedInAt(booking.getCheckedInAt())
+                        .checkedOutAt(booking.getCheckedOutAt())
+                        .build())
+                .toList();
     }
 
     //Track Booking
-    public List<Booking> trackBookings(String mobileNumber) {
+    public List<BookingHistoryResponse> trackBookings(String mobileNumber) {
 
         Member member = memberRepository
                 .findByMobileNumber(mobileNumber)
@@ -207,7 +219,19 @@ public class CustomerService {
                         new IllegalArgumentException("Member not found."));
 
         return bookingRepository
-                .findByMemberIdOrderByBookingDateDesc(member.getId());
+                .findByMemberIdOrderByBookingDateDesc(member.getId())
+                .stream()
+                .map(booking -> BookingHistoryResponse.builder()
+                        .bookingId(booking.getId())
+                        .bookingDate(booking.getBookingDate())
+                        .token(booking.getToken())
+                        .cardType(booking.getSlot().getCardType())
+                        .slot(booking.getBookingLabel())
+                        .status(booking.getStatus())
+                        .checkedInAt(booking.getCheckedInAt())
+                        .checkedOutAt(booking.getCheckedOutAt())
+                        .build())
+                .toList();
     }
 
     //Audit Log Helper
