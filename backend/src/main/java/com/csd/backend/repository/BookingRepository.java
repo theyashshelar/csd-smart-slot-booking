@@ -13,6 +13,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     boolean existsByMemberId(Long memberId);
 
+    List<Booking> findByTokenStartingWith(String prefix);
+
     boolean existsByMemberIdAndBookingDateAndSlot_CardType(
             Long memberId,
             LocalDate bookingDate,

@@ -2,6 +2,7 @@ package com.csd.backend.service;
 
 import com.csd.backend.dto.*;
 import com.csd.backend.entity.*;
+import com.csd.backend.exception.BadRequestException;
 import com.csd.backend.repository.AuditLogRepository;
 import com.csd.backend.repository.BookingRepository;
 import com.csd.backend.repository.MemberRepository;
@@ -150,21 +151,21 @@ public class CustomerService {
                         : LocalDate.now();
 
         if (bookingDate.isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException(
+            throw new BadRequestException(
                     "Booking date cannot be in the past."
             );
         }
 
         Member member = memberRepository.findById(request.memberId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Member not found"));
+                        new BadRequestException("Member not found"));
 
         Slot slot = slotRepository.findById(request.slotId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Slot not found"));
+                        new BadRequestException("Slot not found"));
 
         if (slot.getCardType() != request.cardType()) {
-            throw new IllegalArgumentException(
+            throw new BadRequestException(
                     "Selected slot does not match card type."
             );
         }
@@ -173,7 +174,7 @@ public class CustomerService {
                 && (member.getGroceryCardNumber() == null
                 || member.getGroceryCardNumber().isBlank())) {
 
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "No Grocery card is registered for this member."
             );
         }
@@ -182,25 +183,24 @@ public class CustomerService {
                 && (member.getLiquorCardNumber() == null
                 || member.getLiquorCardNumber().isBlank())) {
 
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "No Liquor card is registered for this member."
             );
         }
 
         boolean alreadyBooked = bookingRepository
-                .existsByMemberIdAndBookingDateAndSlot_CardType(
-                        member.getId(),
-                        bookingDate,
-                        request.cardType()
-                );
+                .findByMemberIdOrderByBookingDateDesc(member.getId())
+                .stream()
+                .anyMatch(b -> b.getBookingDate().equals(bookingDate)
+                        && b.getSlot().getCardType() == request.cardType()
+                        && b.getStatus() != BookingStatus.CANCELLED);
 
         if (alreadyBooked) {
-
-            throw new IllegalStateException(
-
+            String timeRef = bookingDate.equals(LocalDate.now()) ? "today" : "this date";
+            throw new BadRequestException(
                     request.cardType() == CardType.GROCERY
-                            ? "Grocery slot already booked for this date."
-                            : "Liquor slot already booked for this date."
+                            ? "You have already booked a Grocery slot for " + timeRef + "."
+                            : "You have already booked a Liquor slot for " + timeRef + "."
             );
         }
 
@@ -215,7 +215,7 @@ public class CustomerService {
                         .count();
 
         if (bookedForSelectedDate >= slot.getCapacity()) {
-            throw new IllegalStateException(
+            throw new BadRequestException(
                     "Selected slot is full for this date."
             );
         }
