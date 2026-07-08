@@ -106,6 +106,53 @@ export const exportReport = (period: string) =>
     responseType: 'blob',
   })
 
+export const exportMembersDirectory = () =>
+  api.get('/admin/export/members-directory', {
+    responseType: 'blob',
+  })
+
+export const exportBookingReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/bookings', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportCheckInCheckOutReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/checkins-checkouts', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportGroceryBookingReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/grocery-bookings', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportLiquorBookingReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/liquor-bookings', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportSlotReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/slots-report', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportHolidayReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/holidays', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
+export const exportAuditLogReport = (startDate?: string, endDate?: string) =>
+  api.get('/admin/export/audit-logs', {
+    params: { startDate, endDate },
+    responseType: 'blob',
+  })
+
 // CUSTOMER
 
 export const verifyMember = (mobileNumber: string) =>

@@ -27,6 +27,12 @@ public class AdminController {
     private final ReportService reportService;
     private final ExcelService excelService;
 
+    private final com.csd.backend.repository.BookingRepository bookingRepository;
+    private final com.csd.backend.repository.MemberRepository memberRepository;
+    private final com.csd.backend.repository.SlotRepository slotRepository;
+    private final com.csd.backend.repository.AuditLogRepository auditLogRepository;
+    private final com.csd.backend.repository.SettingsRepository settingsRepository;
+
     //Dashboard
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStats> dashboard() {
@@ -260,6 +266,191 @@ public class AdminController {
 
         return ResponseEntity.ok().build();
 
+    }
+
+    // Export Members Directory
+    @GetMapping("/export/members-directory")
+    public ResponseEntity<byte[]> exportMembersDirectory() throws IOException {
+        List<com.csd.backend.entity.Member> members = memberRepository.findAll();
+        byte[] data = excelService.exportMembersDirectory(members);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=members_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Booking Report
+    @GetMapping("/export/bookings")
+    public ResponseEntity<byte[]> exportBookings(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.Booking> bookings;
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            bookings = bookingRepository.findByBookingDateBetween(start, end);
+        } else {
+            bookings = bookingRepository.findAll();
+        }
+
+        byte[] data = excelService.exportBookings(bookings);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=bookings_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Check-In / Check-Out Report
+    @GetMapping("/export/checkins-checkouts")
+    public ResponseEntity<byte[]> exportCheckInCheckOut(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.Booking> bookings;
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            bookings = bookingRepository.findByBookingDateBetween(start, end);
+        } else {
+            bookings = bookingRepository.findAll();
+        }
+
+        byte[] data = excelService.exportCheckInCheckOut(bookings);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=checkins_checkouts_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Grocery Booking Report
+    @GetMapping("/export/grocery-bookings")
+    public ResponseEntity<byte[]> exportGroceryBookings(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.Booking> bookings;
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            bookings = bookingRepository.findByBookingDateBetween(start, end);
+        } else {
+            bookings = bookingRepository.findAll();
+        }
+
+        List<com.csd.backend.entity.Booking> groceryBookings = bookings.stream()
+                .filter(b -> b.getSlot() != null && b.getSlot().getCardType() == com.csd.backend.entity.CardType.GROCERY)
+                .collect(java.util.stream.Collectors.toList());
+
+        byte[] data = excelService.exportBookings(groceryBookings);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=grocery_bookings_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Liquor Booking Report
+    @GetMapping("/export/liquor-bookings")
+    public ResponseEntity<byte[]> exportLiquorBookings(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.Booking> bookings;
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            bookings = bookingRepository.findByBookingDateBetween(start, end);
+        } else {
+            bookings = bookingRepository.findAll();
+        }
+
+        List<com.csd.backend.entity.Booking> liquorBookings = bookings.stream()
+                .filter(b -> b.getSlot() != null && b.getSlot().getCardType() == com.csd.backend.entity.CardType.LIQUOR)
+                .collect(java.util.stream.Collectors.toList());
+
+        byte[] data = excelService.exportBookings(liquorBookings);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=liquor_bookings_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Slot Report
+    @GetMapping("/export/slots-report")
+    public ResponseEntity<byte[]> exportSlotsReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.Slot> slots = slotRepository.findAll();
+        List<com.csd.backend.entity.Booking> bookings;
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            bookings = bookingRepository.findByBookingDateBetween(start, end);
+        } else {
+            bookings = bookingRepository.findAll();
+        }
+
+        byte[] data = excelService.exportSlotsReport(slots, bookings);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=slots_report_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Holiday Report
+    @GetMapping("/export/holidays")
+    public ResponseEntity<byte[]> exportHolidaysReport(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        String weeklyHolidays = settingsRepository.findByKeyName("weeklyHolidays")
+                .map(com.csd.backend.entity.Settings::getSettingValue).orElse("");
+        String specialHolidaysDetails = settingsRepository.findByKeyName("specialHolidaysDetails")
+                .map(com.csd.backend.entity.Settings::getSettingValue).orElse("");
+
+        java.time.LocalDate start = (startDate != null && !startDate.isEmpty()) ? java.time.LocalDate.parse(startDate) : null;
+        java.time.LocalDate end = (endDate != null && !endDate.isEmpty()) ? java.time.LocalDate.parse(endDate) : null;
+
+        byte[] data = excelService.exportHolidaysReport(weeklyHolidays, specialHolidaysDetails, start, end);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=holidays_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
+    }
+
+    // Export Audit Log Report (if audit logs exist)
+    @GetMapping("/export/audit-logs")
+    public ResponseEntity<byte[]> exportAuditLogs(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) throws IOException {
+        
+        List<com.csd.backend.entity.AuditLog> logs = auditLogRepository.findAll();
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            logs = logs.stream()
+                .filter(l -> {
+                    if (l.getCreatedAt() == null) return false;
+                    java.time.LocalDate logDate = l.getCreatedAt().toLocalDate();
+                    return !logDate.isBefore(start) && !logDate.isAfter(end);
+                })
+                .collect(java.util.stream.Collectors.toList());
+        }
+
+        byte[] data = excelService.exportAuditLogs(logs);
+        String today = java.time.LocalDate.now().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=audit_logs_" + today + ".xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(data);
     }
 
 }
