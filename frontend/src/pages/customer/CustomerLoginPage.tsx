@@ -8,6 +8,8 @@ import {
     TextField,
     Typography,
     Alert,
+    IconButton,
+    InputAdornment,
 } from "@mui/material";
 
 import {
@@ -16,6 +18,8 @@ import {
     PersonRounded,
     QrCode2Rounded,
     VerifiedRounded,
+    Visibility,
+    VisibilityOff,
 } from "@mui/icons-material";
 
 import { useState } from "react";
@@ -27,6 +31,7 @@ export default function CustomerLoginPage() {
     const [mobileNumber, setMobileNumber] = useState("");
 
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
 
@@ -227,7 +232,7 @@ export default function CustomerLoginPage() {
 
                                 <TextField
                                     label="Password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     fullWidth
                                     size="small"
                                     value={password}
@@ -235,6 +240,19 @@ export default function CustomerLoginPage() {
                                         setPassword(e.target.value)
                                     }
                                     slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                                    InputProps={{
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    aria-label="toggle password visibility"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                >
+                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
                                 />
                                 <Button
                                     fullWidth

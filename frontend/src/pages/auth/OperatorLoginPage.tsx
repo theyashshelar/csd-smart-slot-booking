@@ -5,14 +5,17 @@ import CardContent from '@mui/material/CardContent'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { PersonRounded } from '@mui/icons-material'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
+import { PersonRounded, Visibility, VisibilityOff } from '@mui/icons-material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginOperator } from '../../services/auth'
 
 export default function OperatorLoginPage() {
-  const [username, setUsername] = useState('operator')
-  const [password, setPassword] = useState('operator123')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -44,7 +47,26 @@ export default function OperatorLoginPage() {
             </Box>
             {error && <Typography color="error">{error}</Typography>}
             <TextField fullWidth label="Operator ID" value={username} onChange={(e) => setUsername(e.target.value)} />
-            <TextField fullWidth label="PIN" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <TextField
+              fullWidth
+              label="PIN"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
             <Button onClick={handleSubmit} variant="contained" fullWidth disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</Button>
           </Stack>
         </CardContent>

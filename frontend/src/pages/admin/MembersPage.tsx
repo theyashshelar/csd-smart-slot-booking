@@ -204,9 +204,11 @@ export default function MembersPage() {
       headerName: 'Member No.',
       width: 120,
       renderCell: ({ row }) => (
-        <Typography fontWeight={800} color="#102319">
-          #{row.id}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography fontWeight={800} color="#2E7D32" variant="body1">
+            #{row.id}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -215,9 +217,9 @@ export default function MembersPage() {
       flex: 1,
       minWidth: 210,
       renderCell: ({ row }) => (
-        <Box>
-          <Typography fontWeight={800}>{row.fullName}</Typography>
-          <Typography variant="caption" color="text.secondary">
+        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', py: 1 }}>
+          <Typography fontWeight={800} sx={{ color: '#111827', fontSize: '0.95rem', lineHeight: 1.2 }}>{row.fullName}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.2 }}>
             {row.mobileNumber}
           </Typography>
         </Box>
@@ -227,18 +229,31 @@ export default function MembersPage() {
       field: 'mobileNumber',
       headerName: 'Mobile',
       minWidth: 150,
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2">{row.mobileNumber}</Typography>
+        </Box>
+      ),
     },
     {
       field: 'groceryCardNumber',
       headerName: 'Grocery Card',
       minWidth: 160,
-      valueGetter: (_, row) => row.groceryCardNumber || 'Not registered',
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2">{row.groceryCardNumber || 'Not registered'}</Typography>
+        </Box>
+      ),
     },
     {
       field: 'liquorCardNumber',
       headerName: 'Liquor Card',
       minWidth: 160,
-      valueGetter: (_, row) => row.liquorCardNumber || 'Not registered',
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2">{row.liquorCardNumber || 'Not registered'}</Typography>
+        </Box>
+      ),
     },
     {
       field: 'registrationStatus',
@@ -246,8 +261,11 @@ export default function MembersPage() {
       width: 140,
       renderCell: ({ row }) => {
         const status = getStatus(row)
-
-        return <Chip size="small" label={status} color={statusColor[status] ?? 'default'} />
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Chip size="small" label={status} color={statusColor[status] ?? 'default'} />
+          </Box>
+        )
       },
     },
     {
@@ -260,37 +278,39 @@ export default function MembersPage() {
         const canReview = status === 'PENDING'
 
         return (
-          <Stack direction="row" spacing={0.8}>
-            <Button size="small" variant="outlined" startIcon={<VisibilityRounded />} onClick={() => setSelectedMember(row)}>
-              View
-            </Button>
-            {canReview && (
-              <>
-                <Button
-                  size="small"
-                  color="success"
-                  variant="contained"
-                  onClick={() => {
-                    setSelectedMember(row)
-                    setConfirmAction('approve')
-                  }}
-                >
-                  Approve
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  onClick={() => {
-                    setSelectedMember(row)
-                    setConfirmAction('reject')
-                  }}
-                >
-                  Reject
-                </Button>
-              </>
-            )}
-          </Stack>
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Stack direction="row" spacing={0.8}>
+              <Button size="small" variant="outlined" startIcon={<VisibilityRounded />} onClick={() => setSelectedMember(row)}>
+                View
+              </Button>
+              {canReview && (
+                <>
+                  <Button
+                    size="small"
+                    color="success"
+                    variant="contained"
+                    onClick={() => {
+                      setSelectedMember(row)
+                      setConfirmAction('approve')
+                    }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    onClick={() => {
+                      setSelectedMember(row)
+                      setConfirmAction('reject')
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+            </Stack>
+          </Box>
         )
       },
     },
@@ -439,6 +459,7 @@ export default function MembersPage() {
                   getRowId={(row) => row.id}
                   loading={loading}
                   disableRowSelectionOnClick
+                  rowHeight={64}
                   pageSizeOptions={[5, 10, 25]}
                   initialState={{
                     pagination: {

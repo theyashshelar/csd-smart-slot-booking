@@ -35,6 +35,7 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
   return (
     <Box
       component="section"
+      id="hero"
       sx={{
         px: { xs: 2, sm: 3 },
         pt: { xs: 8, md: 11 },

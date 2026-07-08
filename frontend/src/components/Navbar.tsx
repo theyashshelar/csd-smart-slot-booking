@@ -17,7 +17,7 @@ import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'
 import { isAuthenticated, logout } from '../services/auth'
 
 const navItems = [
@@ -36,8 +36,29 @@ const portalItems = [
 
 export default function Navbar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const authenticated = isAuthenticated()
+
+  const handleNavClick = (event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, to: string) => {
+    if (to === '/track-booking') {
+      return
+    }
+
+    event.preventDefault()
+
+    const targetHash = to === '/' ? '#hero' : to.substring(to.indexOf('#'))
+    const targetId = targetHash.replace('#', '')
+
+    if (location.pathname === '/') {
+      const element = document.getElementById(targetId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    } else {
+      navigate('/' + targetHash)
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -89,7 +110,13 @@ export default function Navbar() {
 
           <Stack direction="row" spacing={0.4} sx={{ display: { xs: 'none', lg: 'flex' } }}>
             {navItems.map((item) => (
-              <Button key={item.label} component={RouterLink} to={item.to} sx={{ color: '#26352C', px: 1.6 }}>
+              <Button
+                key={item.label}
+                component={RouterLink}
+                to={item.to}
+                onClick={(e) => handleNavClick(e, item.to)}
+                sx={{ color: '#26352C', px: 1.6 }}
+              >
                 {item.label}
               </Button>
             ))}
@@ -158,7 +185,17 @@ export default function Navbar() {
 
             <Stack spacing={1}>
               {navItems.map((item) => (
-                <Button key={item.label} component={RouterLink} to={item.to} onClick={closeMobile} fullWidth sx={{ justifyContent: 'flex-start', color: '#26352C' }}>
+                <Button
+                  key={item.label}
+                  component={RouterLink}
+                  to={item.to}
+                  onClick={(e) => {
+                    closeMobile()
+                    handleNavClick(e, item.to)
+                  }}
+                  fullWidth
+                  sx={{ justifyContent: 'flex-start', color: '#26352C' }}
+                >
                   {item.label}
                 </Button>
               ))}

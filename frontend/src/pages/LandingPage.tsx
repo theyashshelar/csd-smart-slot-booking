@@ -49,6 +49,19 @@ export default function LandingPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!loading && window.location.hash) {
+      const id = window.location.hash.replace('#', '')
+      const element = document.getElementById(id)
+      if (element) {
+        const timer = setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' })
+        }, 150)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [loading])
+
   const totals = useMemo<LandingTotals>(() => {
     const slots = data?.availableSlots ?? []
     const capacity = slots.reduce((sum, slot) => sum + slot.capacity, 0)
