@@ -1,0 +1,8 @@
+{
+  "name": "CSD Smart Slot Booking",
+  "description": "An automated slot booking system for canteen services, featuring customer dashboards, operator check-ins, and administrative reporting.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
