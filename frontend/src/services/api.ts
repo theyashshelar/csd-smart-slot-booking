@@ -74,7 +74,9 @@ export const changeSlotStatus = (id: number, active: boolean) =>
 export const getSettings = () => api.get('/admin/settings')
 
 export const saveSettings = (keyName: string, value: string) =>
-  api.post(`/admin/settings?keyName=${keyName}&value=${value}`)
+  api.post('/admin/settings', null, {
+    params: { keyName, value },
+  })
 
 // REPORTS
 
