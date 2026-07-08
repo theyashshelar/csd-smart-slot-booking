@@ -1,9 +1,6 @@
 package com.csd.backend.controller;
 
-import com.csd.backend.dto.DashboardStats;
-import com.csd.backend.dto.MemberRequest;
-import com.csd.backend.dto.ReportResponse;
-import com.csd.backend.dto.SlotRequest;
+import com.csd.backend.dto.*;
 import com.csd.backend.entity.Member;
 import com.csd.backend.entity.Settings;
 import com.csd.backend.entity.Slot;
@@ -134,7 +131,7 @@ public class AdminController {
     }
 
     @PostMapping("/settings")
-    public ResponseEntity<Settings> saveSettings(
+    public ResponseEntity<Settings> saveSetting(
             @RequestParam String keyName,
             @RequestParam String value) {
 
@@ -243,6 +240,26 @@ public class AdminController {
         return ResponseEntity.ok(
                 adminService.rejectMember(id)
         );
+    }
+
+    @GetMapping("/system-settings")
+    public ResponseEntity<SystemSettingsResponse> getSystemSettings(){
+
+        return ResponseEntity.ok(
+                adminService.getSystemSettings()
+        );
+
+    }
+
+    @PutMapping("/system-settings")
+    public ResponseEntity<Void> updateSystemSettings(
+
+            @RequestBody SystemSettingsResponse request){
+
+        adminService.updateSystemSettings(request);
+
+        return ResponseEntity.ok().build();
+
     }
 
 }

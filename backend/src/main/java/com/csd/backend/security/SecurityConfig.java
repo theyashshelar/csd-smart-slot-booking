@@ -38,8 +38,16 @@ public class SecurityConfig {
                                 "/api/auth/operator/login",
                                 "/api/auth/customer/login",
 
+                                // Customer Public APIs
+                                "/api/customer/verify",
+                                "/api/customer/slots/**",
+                                "/api/customer/track/**",
+                                "/api/customer/landing",
+
+                                //QR
                                 "/api/qr/**",
 
+                                //Swagger
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",

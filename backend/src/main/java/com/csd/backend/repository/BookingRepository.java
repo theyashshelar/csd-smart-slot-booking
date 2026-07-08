@@ -72,4 +72,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     );
 
     List<Booking> findByStatusIn(List<BookingStatus> booked);
+
+    List<Booking> findTop5ByOrderByCreatedAtDesc();
 }

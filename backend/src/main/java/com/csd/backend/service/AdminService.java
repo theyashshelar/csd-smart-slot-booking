@@ -3,6 +3,7 @@ package com.csd.backend.service;
 import com.csd.backend.dto.DashboardStats;
 import com.csd.backend.dto.MemberRequest;
 import com.csd.backend.dto.SlotRequest;
+import com.csd.backend.dto.SystemSettingsResponse;
 import com.csd.backend.entity.*;
 import com.csd.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +14,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -29,36 +34,97 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
 
     //Dashboard Statistics
+    @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
 
         LocalDate today = LocalDate.now();
+        LocalDate weekStart = today.minusDays(6);
+        LocalDate monthStart = today.minusMonths(5).withDayOfMonth(1);
 
-        long todayVisitors =
-                bookingRepository.countByBookingDate(today);
+        List<Booking> todayBookings =
+                bookingRepository.findByBookingDate(today);
+
+        List<Booking> weeklyBookings =
+                bookingRepository.findByBookingDateBetween(weekStart, today);
+
+        List<Booking> monthlyBookings =
+                bookingRepository.findByBookingDateBetween(monthStart, today);
+
+        List<Slot> allSlots = slotRepository.findAll();
+        List<Member> pendingMembers = memberRepository.findByRegistrationStatus(
+                RegistrationStatus.PENDING
+        );
 
         long registeredMembers =
                 memberRepository.count();
 
-        long bookings =
-                bookingRepository.countByBookingDate(today);
+        long activeMembers =
+                memberRepository.countByRegistrationStatus(
+                        RegistrationStatus.APPROVED
+                );
+
+        long pendingRegistrations =
+                memberRepository.countByRegistrationStatus(
+                        RegistrationStatus.PENDING
+                );
+
+        long rejectedRegistrations =
+                memberRepository.countByRegistrationStatus(
+                        RegistrationStatus.REJECTED
+                );
+
+        long bookings = todayBookings.size();
 
         long checkedIn =
-                bookingRepository.findByBookingDate(today)
-                        .stream()
+                todayBookings.stream()
                         .filter(b -> b.getStatus() == BookingStatus.CHECKED_IN)
                         .count();
 
         long checkedOut =
-                bookingRepository.findByBookingDate(today)
-                        .stream()
+                todayBookings.stream()
                         .filter(b -> b.getStatus() == BookingStatus.CHECKED_OUT)
                         .count();
 
         long cancelled =
-                bookingRepository.findByBookingDate(today)
-                        .stream()
+                todayBookings.stream()
                         .filter(b -> b.getStatus() == BookingStatus.CANCELLED)
                         .count();
+
+        long todayVisitors = checkedIn + checkedOut;
+
+        long availableSlots = allSlots.stream()
+                .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
+                .mapToLong(slot -> Math.max(
+                        slot.getCapacity() - slot.getBookedCount(),
+                        0
+                ))
+                .sum();
+
+        long groceryAvailable = allSlots.stream()
+                .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
+                .filter(slot -> slot.getCardType() == CardType.GROCERY)
+                .mapToLong(slot -> Math.max(
+                        slot.getCapacity() - slot.getBookedCount(),
+                        0
+                ))
+                .sum();
+
+        long liquorAvailable = allSlots.stream()
+                .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
+                .filter(slot -> slot.getCardType() == CardType.LIQUOR)
+                .mapToLong(slot -> Math.max(
+                        slot.getCapacity() - slot.getBookedCount(),
+                        0
+                ))
+                .sum();
+
+        long groceryBookings = todayBookings.stream()
+                .filter(booking -> booking.getSlot().getCardType() == CardType.GROCERY)
+                .count();
+
+        long liquorBookings = todayBookings.stream()
+                .filter(booking -> booking.getSlot().getCardType() == CardType.LIQUOR)
+                .count();
 
         return new DashboardStats(
                 todayVisitors,
@@ -66,8 +132,142 @@ public class AdminService {
                 bookings,
                 checkedIn,
                 checkedOut,
-                cancelled
+                cancelled,
+                activeMembers,
+                pendingRegistrations,
+                rejectedRegistrations,
+                availableSlots,
+                allSlots.size(),
+                groceryAvailable,
+                liquorAvailable,
+                groceryBookings,
+                liquorBookings,
+                bookingRepository.findTop5ByOrderByCreatedAtDesc()
+                        .stream()
+                        .map(booking -> new DashboardStats.BookingSummary(
+                                booking.getId(),
+                                booking.getBookingDate(),
+                                booking.getToken(),
+                                booking.getMember().getFullName(),
+                                booking.getSlot().getCardType().name(),
+                                booking.getBookingLabel(),
+                                booking.getStatus().name()
+                        ))
+                        .toList(),
+                pendingMembers.stream()
+                        .sorted(Comparator.comparing(Member::getId).reversed())
+                        .limit(5)
+                        .map(member -> new DashboardStats.PendingRegistrationSummary(
+                                member.getId(),
+                                member.getFullName(),
+                                member.getMobileNumber(),
+                                member.getGroceryCardNumber(),
+                                member.getLiquorCardNumber(),
+                                member.getRegistrationStatus().name()
+                        ))
+                        .toList(),
+                auditLogRepository.findTop5ByOrderByCreatedAtDesc()
+                        .stream()
+                        .map(log -> new DashboardStats.ActivitySummary(
+                                log.getId(),
+                                log.getActor(),
+                                log.getAction(),
+                                log.getDetails(),
+                                log.getCreatedAt()
+                        ))
+                        .toList(),
+                buildWeeklyChart(weeklyBookings, weekStart, today),
+                buildMonthlyChart(monthlyBookings, monthStart, today),
+                List.of(
+                        new DashboardStats.ChartPoint("Grocery", groceryBookings),
+                        new DashboardStats.ChartPoint("Liquor", liquorBookings)
+                ),
+                buildPeakHours(todayBookings)
         );
+    }
+
+    private List<DashboardStats.ChartPoint> buildWeeklyChart(
+            List<Booking> bookings,
+            LocalDate start,
+            LocalDate end) {
+
+        List<DashboardStats.ChartPoint> chart = new ArrayList<>();
+
+        for (LocalDate date = start;
+             !date.isAfter(end);
+             date = date.plusDays(1)) {
+
+            LocalDate current = date;
+
+            long count = bookings.stream()
+                    .filter(booking -> booking.getBookingDate().equals(current))
+                    .count();
+
+            chart.add(
+                    new DashboardStats.ChartPoint(
+                            current.getDayOfWeek()
+                                    .getDisplayName(
+                                            TextStyle.SHORT,
+                                            Locale.ENGLISH),
+                            count
+                    )
+            );
+        }
+
+        return chart;
+    }
+
+    private List<DashboardStats.ChartPoint> buildMonthlyChart(
+            List<Booking> bookings,
+            LocalDate start,
+            LocalDate end) {
+
+        List<DashboardStats.ChartPoint> chart = new ArrayList<>();
+        YearMonth firstMonth = YearMonth.from(start);
+        YearMonth lastMonth = YearMonth.from(end);
+
+        for (YearMonth month = firstMonth;
+             !month.isAfter(lastMonth);
+             month = month.plusMonths(1)) {
+
+            YearMonth current = month;
+
+            long count = bookings.stream()
+                    .filter(booking ->
+                            YearMonth.from(booking.getBookingDate())
+                                    .equals(current))
+                    .count();
+
+            chart.add(
+                    new DashboardStats.ChartPoint(
+                            current.getMonth()
+                                    .getDisplayName(
+                                            TextStyle.SHORT,
+                                            Locale.ENGLISH),
+                            count
+                    )
+            );
+        }
+
+        return chart;
+    }
+
+    private List<DashboardStats.ChartPoint> buildPeakHours(
+            List<Booking> bookings) {
+
+        return bookings.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        booking -> booking.getSlot().getStartTime(),
+                        java.util.stream.Collectors.counting()
+                ))
+                .entrySet()
+                .stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .map(entry -> new DashboardStats.ChartPoint(
+                        entry.getKey(),
+                        entry.getValue()
+                ))
+                .toList();
     }
 
     //Search Members
@@ -396,6 +596,79 @@ public class AdminService {
         );
 
         return saved;
+    }
+
+    //Settings
+    private String getSetting(String key,String defaultValue){
+
+        return settingsRepository
+                .findByKeyName(key)
+                .map(Settings::getSettingValue)
+                .orElse(defaultValue);
+
+    }
+
+    @Transactional(readOnly = true)
+    public SystemSettingsResponse getSystemSettings(){
+
+        return SystemSettingsResponse.builder()
+
+                .bookingEnabled(Boolean.parseBoolean(
+                        getSetting("BOOKING_ENABLED","true")
+                ))
+
+                .bookingWindowDays(Integer.parseInt(
+                        getSetting("BOOKING_WINDOW_DAYS","3")
+                ))
+
+                .groceryAvailable(Boolean.parseBoolean(
+                        getSetting("GROCERY_AVAILABLE","true")
+                ))
+
+                .liquorAvailable(Boolean.parseBoolean(
+                        getSetting("LIQUOR_AVAILABLE","true")
+                ))
+
+                .maxBookingPerDay(Integer.parseInt(
+                        getSetting("MAX_BOOKING_PER_DAY","1")
+                ))
+
+                .cancellationEnabled(Boolean.parseBoolean(
+                        getSetting("CANCELLATION_ENABLED","true")
+                ))
+
+                .cancellationHours(Integer.parseInt(
+                        getSetting("CANCELLATION_HOURS","2")
+                ))
+
+                .build();
+
+    }
+
+    @Transactional
+    public void updateSystemSettings(SystemSettingsResponse request){
+
+        saveSettings("BOOKING_ENABLED",
+                String.valueOf(request.bookingEnabled()));
+
+        saveSettings("BOOKING_WINDOW_DAYS",
+                String.valueOf(request.bookingWindowDays()));
+
+        saveSettings("GROCERY_AVAILABLE",
+                String.valueOf(request.groceryAvailable()));
+
+        saveSettings("LIQUOR_AVAILABLE",
+                String.valueOf(request.liquorAvailable()));
+
+        saveSettings("MAX_BOOKING_PER_DAY",
+                String.valueOf(request.maxBookingPerDay()));
+
+        saveSettings("CANCELLATION_ENABLED",
+                String.valueOf(request.cancellationEnabled()));
+
+        saveSettings("CANCELLATION_HOURS",
+                String.valueOf(request.cancellationHours()));
+
     }
 
 }

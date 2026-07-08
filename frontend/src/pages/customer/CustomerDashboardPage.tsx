@@ -199,7 +199,7 @@ export default function CustomerDashboardPage() {
                                     variant="contained"
                                     startIcon={<CalendarMonthRounded />}
                                     onClick={() =>
-                                        navigate('/book-slot')
+                                            navigate('/customer/book-slot')
                                     }
                                 >
                                     Book Slot

@@ -3,6 +3,8 @@ package com.csd.backend.dto;
 import com.csd.backend.entity.CardType;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.LocalDate;
+
 public record BookingRequest(
 
         @NotNull
@@ -12,7 +14,9 @@ public record BookingRequest(
         Long slotId,
 
         @NotNull
-        CardType cardType
+        CardType cardType,
+
+        LocalDate bookingDate
 
 ) {
 }

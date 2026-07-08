@@ -48,6 +48,14 @@ export const updateMember = (id: number, data: unknown) =>
 
 export const deleteMember = (id: number) => api.delete(`/admin/members/${id}`)
 
+export const getPendingMembers = () => api.get('/admin/members/pending')
+
+export const approveMember = (id: number) =>
+  api.put(`/admin/members/${id}/approve`)
+
+export const rejectMember = (id: number) =>
+  api.put(`/admin/members/${id}/reject`)
+
 // SLOTS
 
 export const getSlotsAdmin = () => api.get('/admin/slots')
@@ -104,14 +112,18 @@ export const verifyMember = (mobileNumber: string) =>
     })
 
 export const getSlots = (
-    cardType: 'GROCERY' | 'LIQUOR'
+    cardType: 'GROCERY' | 'LIQUOR',
+    bookingDate?: string
 ) =>
-    api.get(`/customer/slots/${cardType}`)
+    api.get(`/customer/slots/${cardType}`, {
+        params: { bookingDate },
+    })
 
 export const createBooking = (data: {
     memberId: number
     slotId: number
     cardType: 'GROCERY' | 'LIQUOR'
+    bookingDate?: string
 }) =>
     api.post('/customer/book', data)
 
@@ -178,3 +190,8 @@ export const trackBooking = (
 
 export const getQueue = () =>
     api.get('/operator/queue')
+
+//Landing Page
+export const getLandingData = () => {
+    return api.get("/customer/landing");
+};

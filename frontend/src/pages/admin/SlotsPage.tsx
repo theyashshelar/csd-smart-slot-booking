@@ -1,60 +1,199 @@
-import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import Chip from '@mui/material/Chip'
-import Grid from '@mui/material/Grid'
-import Stack from '@mui/material/Stack'
-import Typography from '@mui/material/Typography'
-import { EditRounded } from '@mui/icons-material'
-import { useEffect, useState } from 'react'
-import { getSlotsAdmin } from '../../services/api'
-import type { Slot } from '../../types/api'
+import {
+    AddRounded,
+    DeleteRounded,
+    EditRounded,
+    SearchRounded,
+    ToggleOffRounded,
+    ToggleOnRounded,
+} from "@mui/icons-material";
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    Grid,
+    IconButton,
+    InputAdornment,
+    LinearProgress,
+    MenuItem,
+    Select,
+    Stack,
+    Switch,
+    TextField,
+    Tooltip,
+    Typography,
+} from "@mui/material";
+import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+    changeSlotStatus,
+    createSlot,
+    deleteSlot,
+    getSlotsAdmin,
+    updateSlot,
+} from "../../services/api";
+
+import type { Slot } from "../../types/api";
+
+interface SlotForm {
+    label: string;
+    cardType: "GROCERY" | "LIQUOR";
+    startTime: string;
+    endTime: string;
+    capacity: number;
+}
+
+const emptyForm: SlotForm = {
+    label: "",
+    cardType: "GROCERY",
+    startTime: "",
+    endTime: "",
+    capacity: 25,
+};
 
 export default function SlotsPage() {
-  const [slots, setSlots] = useState<Slot[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    const [slots, setSlots] = useState<Slot[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLoading(true)
-    getSlotsAdmin()
-      .then((res) => setSlots(res.data || []))
-      .catch((err) => setError(err?.response?.data || err.message || 'Failed to load slots'))
-      .finally(() => setLoading(false))
-  }, [])
+    const [search, setSearch] = useState("");
 
-  return (
-    <Box>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2} sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>Slot Management</Typography>
-          <Typography color="text.secondary">Keep capacity balanced and service flow optimized.</Typography>
-        </Box>
-      </Stack>
+    const [filter, setFilter] = useState("ALL");
 
-      <Grid container spacing={2}>
-        {loading && <Typography sx={{ p: 2 }}>Loading slots...</Typography>}
-        {error && <Typography color="error">{error}</Typography>}
-        {slots.map((slot) => (
-          <Grid size={{ xs: 12, md: 4 }} key={slot.id}>
-            <Card>
-              <CardContent>
-                <Stack spacing={2}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">{`${slot.startTime || ''}-${slot.endTime || ''}`}</Typography>
-                    <Chip label={!slot.active ? 'Disabled' : (slot.capacity && slot.bookedCount !== undefined ? Math.max(0, (slot.capacity - (slot.bookedCount || 0))) === 0 ? 'Full' : 'Open' : 'Open')} color={!slot.active ? 'default' : (slot.capacity && slot.bookedCount !== undefined ? (Math.max(0, (slot.capacity - (slot.bookedCount || 0))) === 0 ? 'error' : 'success') : 'success')} />
-                  </Stack>
-                  <Typography><strong>Capacity:</strong> {slot.capacity ?? '-'}</Typography>
-                  <Typography><strong>Booked:</strong> {slot.bookedCount ?? 0}</Typography>
-                  <Typography><strong>Available:</strong> {(slot.capacity ?? 0) - (slot.bookedCount ?? 0)}</Typography>
-                  <Button variant="outlined" startIcon={<EditRounded />}>Edit</Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
-  )
-}
+    const [openDialog, setOpenDialog] = useState(false);
+
+    const [deleteDialog, setDeleteDialog] = useState(false);
+
+    const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+
+    const [form, setForm] = useState<SlotForm>(emptyForm);
+
+    const [saving, setSaving] = useState(false);
+
+    const [error, setError] = useState("");
+
+    const loadSlots = async () => {
+        try {
+            setLoading(true);
+
+            const res = await getSlotsAdmin();
+
+            setSlots(res.data ?? []);
+        } catch (e: any) {
+            setError(e?.response?.data || "Unable to load slots.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadSlots();
+    }, []);
+
+    const filteredSlots = useMemo(() => {
+        return slots.filter((slot) => {
+            const keyword =
+                slot.label.toLowerCase().includes(search.toLowerCase()) ||
+                slot.startTime.toLowerCase().includes(search.toLowerCase()) ||
+                slot.endTime.toLowerCase().includes(search.toLowerCase());
+
+            if (filter === "ACTIVE")
+                return keyword && slot.active;
+
+            if (filter === "DISABLED")
+                return keyword && !slot.active;
+
+            if (filter === "GROCERY")
+                return keyword && slot.cardType === "GROCERY";
+
+            if (filter === "LIQUOR")
+                return keyword && slot.cardType === "LIQUOR";
+
+            return keyword;
+        });
+    }, [slots, search, filter]);
+
+    const totalCapacity = slots.reduce(
+        (sum, s) => sum + s.capacity,
+        0
+    );
+
+    const totalBooked = slots.reduce(
+        (sum, s) => sum + s.bookedCount,
+        0
+    );
+
+    const occupancy = totalCapacity
+        ? Math.round((totalBooked / totalCapacity) * 100)
+        : 0;
+
+    const activeSlots = slots.filter((s) => s.active).length;
+
+    const disabledSlots = slots.filter((s) => !s.active).length;
+
+    const handleCreate = () => {
+        setSelectedSlot(null);
+
+        setForm(emptyForm);
+
+        setOpenDialog(true);
+    };
+
+    const handleEdit = (slot: Slot) => {
+        setSelectedSlot(slot);
+
+        setForm({
+            label: slot.label,
+            cardType: slot.cardType,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            capacity: slot.capacity,
+        });
+
+        setOpenDialog(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+
+            if (selectedSlot) {
+                await updateSlot(selectedSlot.id, form);
+            } else {
+                await createSlot(form);
+            }
+
+            setOpenDialog(false);
+
+            await loadSlots();
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedSlot) return;
+
+        await deleteSlot(selectedSlot.id);
+
+        setDeleteDialog(false);
+
+        loadSlots();
+    };
+
+    const handleToggle = async (slot: Slot) => {
+        await changeSlotStatus(
+            slot.id,
+            !slot.active
+        );
+
+        loadSlots();
+    };

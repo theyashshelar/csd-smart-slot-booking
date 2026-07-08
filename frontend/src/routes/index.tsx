@@ -2,7 +2,6 @@ import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import DashboardLayout from '../layouts/DashboardLayout'
 import LandingPage from '../pages/LandingPage'
-import BookSlotPage from '../pages/BookSlotPage'
 import BookingSuccessPage from '../pages/BookingSuccessPage'
 import TrackBookingPage from '../pages/TrackBookingPage'
 import AdminLoginPage from '../pages/auth/AdminLoginPage'
@@ -20,19 +19,20 @@ import ProfilePage from '../pages/customer/ProfilePage'
 import BookingHistoryPage from '../pages/customer/BookingHistoryPage'
 import ChangePasswordPage from '../pages/customer/ChangePasswordPage'
 import CustomerBookSlotPage from '../pages/customer/CustomerBookSlotPage'
+import CustomerRegisterPage from '../pages/customer/CustomerRegisterPage'
 
 export const router = createBrowserRouter([
   {
     element: <MainLayout />,
     children: [
       { path: '/', element: <LandingPage /> },
-      { path: '/book-slot', element: <BookSlotPage /> },
       { path: '/booking-success', element: <BookingSuccessPage /> },
       { path: '/track-booking', element: <TrackBookingPage /> },
       { path: '/admin/login', element: <AdminLoginPage /> },
       { path: '/operator/login', element: <OperatorLoginPage /> },
       { path: '*', element: <NotFoundPage /> },
       { path: '/customer/login', element: <CustomerLoginPage /> },
+      { path: '/customer/register', element: <CustomerRegisterPage /> },
     ],
   },
   {

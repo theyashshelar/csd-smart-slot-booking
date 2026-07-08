@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -33,10 +34,11 @@ public class CustomerController {
     //Available Slots
     @GetMapping("/slots/{cardType}")
     public ResponseEntity<List<Slot>> getAvailableSlots(
-            @PathVariable CardType cardType) {
+            @PathVariable CardType cardType,
+            @RequestParam(required = false) LocalDate bookingDate) {
 
         return ResponseEntity.ok(
-                customerService.getAvailableSlots(cardType)
+                customerService.getAvailableSlots(cardType, bookingDate)
         );
     }
 
@@ -100,5 +102,15 @@ public class CustomerController {
         customerService.changePassword(memberId, request);
 
         return ResponseEntity.ok("Password changed successfully.");
+    }
+
+    //Landing Page
+    @GetMapping("/landing")
+    public ResponseEntity<LandingPageResponse> landing() {
+
+        return ResponseEntity.ok(
+                customerService.getLandingData()
+        );
+
     }
 }

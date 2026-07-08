@@ -1,14 +1,14 @@
 export interface Member {
   id: number;
-  cardNumber: string;
   fullName: string;
   mobileNumber: string;
-  rank?: string | null;
-  category?: string | null;
-  unit?: string | null;
-  status?: string | null;
-  email?: string | null;
-  role?: string | null;
+  dateOfBirth?: string;
+
+  groceryCardNumber?: string | null;
+  liquorCardNumber?: string | null;
+
+  registrationStatus?: string;
+  role?: string;
   verified?: boolean;
 }
 
@@ -25,6 +25,7 @@ export interface Slot {
 
 export interface Booking {
   id: number
+  bookingId?: number
   bookingDate: string
   token: string
   cardType: 'GROCERY' | 'LIQUOR'
@@ -51,6 +52,54 @@ export interface DashboardStats {
   checkedIn: number;
   checkedOut: number;
   cancelled: number;
+  activeMembers: number;
+  pendingRegistrations: number;
+  rejectedRegistrations: number;
+  availableSlots: number;
+  totalSlots: number;
+  groceryAvailable: number;
+  liquorAvailable: number;
+  groceryBookings: number;
+  liquorBookings: number;
+  recentBookings: DashboardBookingSummary[];
+  pendingRegistrationList: DashboardPendingRegistration[];
+  recentAdminActivities: DashboardActivity[];
+  weeklyBookings: DashboardChartPoint[];
+  monthlyBookings: DashboardChartPoint[];
+  cardUsage: DashboardChartPoint[];
+  peakBookingHours: DashboardChartPoint[];
+}
+
+export interface DashboardBookingSummary {
+  bookingId: number;
+  bookingDate: string;
+  token: string;
+  memberName: string;
+  cardType: 'GROCERY' | 'LIQUOR' | string;
+  slot: string;
+  status: string;
+}
+
+export interface DashboardPendingRegistration {
+  memberId: number;
+  fullName: string;
+  mobileNumber: string;
+  groceryCardNumber: string | null;
+  liquorCardNumber: string | null;
+  registrationStatus: string;
+}
+
+export interface DashboardActivity {
+  id: number;
+  actor: string;
+  action: string;
+  details: string;
+  createdAt: string;
+}
+
+export interface DashboardChartPoint {
+  label: string;
+  value: number;
 }
 
 export interface ReportResponse {
@@ -106,4 +155,20 @@ export interface OperatorBooking {
     endTime: string
   }
 
+}
+
+export interface VerificationResponse {
+  id: number
+  fullName: string
+  mobileNumber: string
+  groceryCardNumber: string | null
+  liquorCardNumber: string | null
+  role: string
+  verified: boolean
+}
+
+export interface LandingPageResponse {
+  registeredMembers: number;
+  todayBookings: number;
+  availableSlots: Slot[];
 }

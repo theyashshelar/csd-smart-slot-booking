@@ -1,8 +1,22 @@
-import { adminLogin, customerLogin, operatorLogin } from './api'
+import api, { adminLogin, customerLogin, operatorLogin } from './api'
 
 const TOKEN_KEY = 'token'
 const ROLE_KEY = 'role'
 const USERNAME_KEY = 'username'
+
+type RegisterCustomerRequest = {
+  fullName: string
+  mobileNumber: string
+  dateOfBirth: string
+  password: string
+  confirmPassword: string
+  groceryCardNumber?: string
+  liquorCardNumber?: string
+}
+
+export function registerCustomer(data: RegisterCustomerRequest) {
+  return api.post('/auth/register', data)
+}
 
 //Admin Login
 export async function loginAdmin(username: string, password: string) {

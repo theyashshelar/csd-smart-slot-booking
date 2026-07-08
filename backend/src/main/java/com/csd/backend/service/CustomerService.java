@@ -30,7 +30,6 @@ public class CustomerService {
     private final TokenGenerator tokenGenerator;
     private final PasswordEncoder passwordEncoder;
 
-
     //Password Validation for Update Password
     @Transactional
     public void changePassword(Long memberId,
@@ -97,13 +96,64 @@ public class CustomerService {
     //Available Slots
     public List<Slot> getAvailableSlots(CardType cardType) {
 
+        return getAvailableSlots(cardType, LocalDate.now());
+    }
+
+    public List<Slot> getAvailableSlots(
+            CardType cardType,
+            LocalDate bookingDate) {
+
+        LocalDate effectiveDate =
+                bookingDate != null
+                        ? bookingDate
+                        : LocalDate.now();
+
         return slotRepository
-                .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType);
+                .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType)
+                .stream()
+                .map(slot -> {
+                    Slot availableSlot = new Slot();
+
+                    availableSlot.setId(slot.getId());
+                    availableSlot.setLabel(slot.getLabel());
+                    availableSlot.setCardType(slot.getCardType());
+                    availableSlot.setStartTime(slot.getStartTime());
+                    availableSlot.setEndTime(slot.getEndTime());
+                    availableSlot.setCapacity(slot.getCapacity());
+                    availableSlot.setActive(slot.getActive());
+                    availableSlot.setBookedCount(
+                            bookingRepository
+                                    .findBySlotIdAndBookingDate(
+                                            slot.getId(),
+                                            effectiveDate
+                                    )
+                                    .stream()
+                                    .filter(booking ->
+                                            booking.getStatus()
+                                                    != BookingStatus.CANCELLED)
+                                    .toList()
+                                    .size()
+                    );
+
+                    return availableSlot;
+                })
+                .toList();
     }
 
     //Create Booking
     @Transactional
     public Booking createBooking(BookingRequest request) {
+
+        LocalDate bookingDate =
+                request.bookingDate() != null
+                        ? request.bookingDate()
+                        : LocalDate.now();
+
+        if (bookingDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "Booking date cannot be in the past."
+            );
+        }
 
         Member member = memberRepository.findById(request.memberId())
                 .orElseThrow(() ->
@@ -140,7 +190,7 @@ public class CustomerService {
         boolean alreadyBooked = bookingRepository
                 .existsByMemberIdAndBookingDateAndSlot_CardType(
                         member.getId(),
-                        LocalDate.now(),
+                        bookingDate,
                         request.cardType()
                 );
 
@@ -149,8 +199,24 @@ public class CustomerService {
             throw new IllegalStateException(
 
                     request.cardType() == CardType.GROCERY
-                            ? "Grocery slot already booked for today."
-                            : "Liquor slot already booked for today."
+                            ? "Grocery slot already booked for this date."
+                            : "Liquor slot already booked for this date."
+            );
+        }
+
+        long bookedForSelectedDate =
+                bookingRepository
+                        .findBySlotIdAndBookingDate(
+                                slot.getId(),
+                                bookingDate
+                        )
+                        .stream()
+                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
+                        .count();
+
+        if (bookedForSelectedDate >= slot.getCapacity()) {
+            throw new IllegalStateException(
+                    "Selected slot is full for this date."
             );
         }
 
@@ -158,7 +224,7 @@ public class CustomerService {
 
         booking.setMember(member);
         booking.setSlot(slot);
-        booking.setBookingDate(LocalDate.now());
+        booking.setBookingDate(bookingDate);
 
         // This will compile after TokenGenerator is updated
         booking.setToken(
@@ -177,8 +243,10 @@ public class CustomerService {
 
         smsService.sendBookingConfirmation(savedBooking);
 
-        slot.setBookedCount(slot.getBookedCount() + 1);
-        slotRepository.save(slot);
+        if (bookingDate.equals(LocalDate.now())) {
+            slot.setBookedCount((int) bookedForSelectedDate + 1);
+            slotRepository.save(slot);
+        }
 
         auditLogRepository.save(
                 log(
@@ -297,5 +365,22 @@ public class CustomerService {
                 .liquorCardNumber(saved.getLiquorCardNumber())
                 .registrationStatus(saved.getRegistrationStatus())
                 .build();
+    }
+
+    //Landing Page
+    public LandingPageResponse getLandingData() {
+
+        long registeredMembers = memberRepository.count();
+
+        long todayBookings = bookingRepository.countByBookingDate(LocalDate.now());
+
+        List<Slot> availableSlots =
+                slotRepository.findByActiveTrueOrderByStartTimeAsc();
+
+        return new LandingPageResponse(
+                registeredMembers,
+                todayBookings,
+                availableSlots
+        );
     }
 }
