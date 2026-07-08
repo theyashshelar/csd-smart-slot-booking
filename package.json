@@ -43,7 +43,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/multer": "^1.4.11",
     "@vitejs/plugin-react": "^6.0.3",
-    "esbuild": "^0.20.2",
+    "esbuild": "^0.28.1",
     "tsx": "^4.19.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
