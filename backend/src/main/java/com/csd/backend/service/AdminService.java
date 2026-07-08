@@ -488,14 +488,23 @@ public class AdminService {
     @Transactional
     public Settings saveSettings(String keyName, String value) {
 
-        Settings settings = settingsRepository
-                .findByKeyName(keyName)
-                .orElse(new Settings());
+        List<Settings> list = settingsRepository.findAllByKeyName(keyName);
+        Settings settings;
+        if (list.isEmpty()) {
+            settings = new Settings();
+            settings.setKeyName(keyName);
+        } else {
+            settings = list.get(0);
+            if (list.size() > 1) {
+                // Delete duplicate records to keep only one
+                for (int i = 1; i < list.size(); i++) {
+                    settingsRepository.delete(list.get(i));
+                }
+            }
+        }
 
-        settings.setKeyName(keyName);
         settings.setSettingValue(value);
-
-        Settings savedSetting = settingsRepository.save(settings);
+        Settings savedSetting = settingsRepository.saveAndFlush(settings);
 
         auditLogRepository.save(
                 log(
