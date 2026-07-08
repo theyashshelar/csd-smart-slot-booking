@@ -7,13 +7,13 @@ import Switch from '@mui/material/Switch'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
-import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 import FormGroup from '@mui/material/FormGroup'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import IconButton from '@mui/material/IconButton'
 import {
   AccessTimeRounded,
   LocalMallRounded,
@@ -41,8 +41,10 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   
-  // New special holiday date input
+  // New special holiday inputs
   const [newSpecialHoliday, setNewSpecialHoliday] = useState('')
+  const [newSpecialHolidayName, setNewSpecialHolidayName] = useState('')
+  const [newSpecialHolidayDesc, setNewSpecialHolidayDesc] = useState('')
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -63,6 +65,7 @@ export default function SettingsPage() {
         if (!mapped.liquorCapacity) mapped.liquorCapacity = '30'
         if (!mapped.weeklyHolidays) mapped.weeklyHolidays = 'Sunday'
         if (!mapped.specialHolidays) mapped.specialHolidays = ''
+        if (!mapped.specialHolidaysDetails) mapped.specialHolidaysDetails = '[]'
         if (!mapped.bookingWindow) mapped.bookingWindow = '3'
 
         setSettings(mapped)
@@ -111,41 +114,151 @@ export default function SettingsPage() {
   }
 
   // Add Special Holiday
-  const handleAddSpecialHoliday = () => {
-    if (!newSpecialHoliday) return
-    const currentHolidays = settings.specialHolidays
+  const handleAddSpecialHoliday = async () => {
+    if (!newSpecialHoliday) {
+      setError('Please select a date for the special holiday.')
+      return
+    }
+
+    const currentDates = settings.specialHolidays
       ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : []
 
-    if (currentHolidays.includes(newSpecialHoliday)) {
+    if (currentDates.includes(newSpecialHoliday)) {
       setError('This holiday date has already been added.')
       return
     }
 
-    const updated = [...currentHolidays, newSpecialHoliday].sort()
-    const newVal = updated.join(',')
-    updateSetting('specialHolidays', newVal)
-    setNewSpecialHoliday('')
+    let currentDetails: { date: string; name: string; description: string }[] = []
+    if (settings.specialHolidaysDetails) {
+      try {
+        currentDetails = JSON.parse(settings.specialHolidaysDetails)
+      } catch (e) {
+        console.error('Error parsing specialHolidaysDetails', e)
+      }
+    }
+
+    const newDetail = {
+      date: newSpecialHoliday,
+      name: newSpecialHolidayName.trim() || 'Special Holiday',
+      description: newSpecialHolidayDesc.trim() || 'Canteen Closed',
+    }
+
+    const updatedDates = [...currentDates, newSpecialHoliday].sort()
+    const updatedDetails = [...currentDetails, newDetail]
+
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const datesStr = updatedDates.join(',')
+      const detailsStr = JSON.stringify(updatedDetails)
+
+      await saveSettings('specialHolidays', datesStr)
+      await saveSettings('specialHolidaysDetails', detailsStr)
+
+      setSettings((prev) => ({
+        ...prev,
+        specialHolidays: datesStr,
+        specialHolidaysDetails: detailsStr,
+      }))
+      setSuccess('Special holiday added successfully.')
+      setNewSpecialHoliday('')
+      setNewSpecialHolidayName('')
+      setNewSpecialHolidayDesc('')
+    } catch (err: any) {
+      setError(err?.response?.data || err.message || 'Failed to save holiday setting')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Remove Special Holiday
-  const handleRemoveSpecialHoliday = (dateToRemove: string) => {
-    const currentHolidays = settings.specialHolidays
+  const handleRemoveSpecialHoliday = async (dateToRemove: string) => {
+    const currentDates = settings.specialHolidays
       ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : []
 
-    const updated = currentHolidays.filter((d) => d !== dateToRemove)
-    const newVal = updated.join(',')
-    updateSetting('specialHolidays', newVal)
+    let currentDetails: { date: string; name: string; description: string }[] = []
+    if (settings.specialHolidaysDetails) {
+      try {
+        currentDetails = JSON.parse(settings.specialHolidaysDetails)
+      } catch (e) {
+        console.error('Error parsing specialHolidaysDetails', e)
+      }
+    }
+
+    const updatedDates = currentDates.filter((d) => d !== dateToRemove)
+    const updatedDetails = currentDetails.filter((d) => d.date !== dateToRemove)
+
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const datesStr = updatedDates.join(',')
+      const detailsStr = JSON.stringify(updatedDetails)
+
+      await saveSettings('specialHolidays', datesStr)
+      await saveSettings('specialHolidaysDetails', detailsStr)
+
+      setSettings((prev) => ({
+        ...prev,
+        specialHolidays: datesStr,
+        specialHolidaysDetails: detailsStr,
+      }))
+      setSuccess('Special holiday removed successfully.')
+    } catch (err: any) {
+      setError(err?.response?.data || err.message || 'Failed to save holiday setting')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const activeWeeklyHolidays = settings.weeklyHolidays
     ? settings.weeklyHolidays.split(',').map((d) => d.trim())
     : []
 
-  const activeSpecialHolidays = settings.specialHolidays
-    ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
-    : []
+  // Derived state for special holidays list to support date/name/description
+  const specialHolidaysList = useMemo(() => {
+    const dates = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+
+    let details: { date: string; name: string; description: string }[] = []
+    if (settings.specialHolidaysDetails) {
+      try {
+        details = JSON.parse(settings.specialHolidaysDetails)
+      } catch (e) {
+        console.error('Error parsing specialHolidaysDetails', e)
+      }
+    }
+
+    const combined = dates.map((date) => {
+      const found = details.find((d) => d.date === date)
+      return {
+        date,
+        name: found?.name || 'Special Holiday',
+        description: found?.description || 'Canteen Closed',
+      }
+    })
+
+    return combined.sort((a, b) => a.date.localeCompare(b.date))
+  }, [settings.specialHolidays, settings.specialHolidaysDetails])
+
+  const formatHolidayDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    try {
+      const date = new Date(dateStr)
+      if (isNaN(date.getTime())) return dateStr
+      return date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    } catch {
+      return dateStr
+    }
+  }
 
   return (
     <Box>
@@ -330,8 +443,9 @@ export default function SettingsPage() {
                   Add specific calendar dates on which the canteen is closed (e.g. national holidays).
                 </Typography>
 
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
                   <TextField
+                    label="Holiday Date"
                     type="date"
                     size="small"
                     fullWidth
@@ -339,34 +453,78 @@ export default function SettingsPage() {
                     value={newSpecialHoliday}
                     onChange={(e) => setNewSpecialHoliday(e.target.value)}
                   />
+                  <TextField
+                    label="Holiday Name"
+                    placeholder="e.g. Independence Day"
+                    size="small"
+                    fullWidth
+                    value={newSpecialHolidayName}
+                    onChange={(e) => setNewSpecialHolidayName(e.target.value)}
+                  />
+                  <TextField
+                    label="Description"
+                    placeholder="e.g. National Holiday"
+                    size="small"
+                    fullWidth
+                    value={newSpecialHolidayDesc}
+                    onChange={(e) => setNewSpecialHolidayDesc(e.target.value)}
+                  />
                   <Button
                     variant="contained"
                     color="success"
                     onClick={handleAddSpecialHoliday}
                     startIcon={<AddCircleOutlineRounded />}
-                    sx={{ px: 2, height: 40, flexShrink: 0 }}
+                    fullWidth
+                    sx={{ height: 40 }}
                   >
-                    Add
+                    Add Holiday
                   </Button>
                 </Stack>
 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5, maxHeight: 150, overflowY: 'auto', p: 0.5 }}>
-                  {activeSpecialHolidays.length === 0 ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                <Box sx={{ mt: 2, maxHeight: 220, overflowY: 'auto', p: 0.5 }}>
+                  {specialHolidaysList.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', py: 2 }}>
                       No special holidays configured.
                     </Typography>
                   ) : (
-                    activeSpecialHolidays.map((hDate) => (
-                      <Chip
-                        key={hDate}
-                        label={hDate}
-                        color="warning"
-                        variant="outlined"
-                        onDelete={() => handleRemoveSpecialHoliday(hDate)}
-                        deleteIcon={<DeleteRounded sx={{ fontSize: 16 }} />}
-                        sx={{ borderRadius: '8px' }}
-                      />
-                    ))
+                    <Stack spacing={1.5}>
+                      {specialHolidaysList.map((holiday) => (
+                        <Box
+                          key={holiday.date}
+                          sx={{
+                            p: 2,
+                            borderRadius: '10px',
+                            border: '1px solid #E5E7EB',
+                            bgcolor: '#F9FAFB',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Stack spacing={0.5}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#111827' }}>
+                              {holiday.name}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#2E7D32', fontWeight: 600 }}>
+                              {formatHolidayDate(holiday.date)}
+                            </Typography>
+                            {holiday.description && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                {holiday.description}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleRemoveSpecialHoliday(holiday.date)}
+                            aria-label={`Delete ${holiday.name}`}
+                          >
+                            <DeleteRounded sx={{ fontSize: 20 }} />
+                          </IconButton>
+                        </Box>
+                      ))}
+                    </Stack>
                   )}
                 </Box>
               </Stack>

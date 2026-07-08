@@ -123,7 +123,7 @@ export default function Navbar() {
           </Stack>
 
           <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
-            {authenticated ? (
+            {authenticated && location.pathname !== '/' ? (
               <Button variant="outlined" color="error" onClick={handleLogout}>
                 Logout
               </Button>
@@ -203,7 +203,7 @@ export default function Navbar() {
 
             <Divider />
 
-            {authenticated ? (
+            {authenticated && location.pathname !== '/' ? (
               <Button variant="outlined" color="error" onClick={handleLogout} fullWidth>
                 Logout
               </Button>
