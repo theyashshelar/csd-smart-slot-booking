@@ -42,8 +42,8 @@ import {
   YAxis,
 } from 'recharts'
 import { motion } from 'framer-motion'
-import { getDashboard } from '../../services/api'
-import type { DashboardChartPoint, DashboardStats } from '../../types/api'
+import { getDashboard, getSettings } from '../../services/api'
+import type { DashboardChartPoint, DashboardStats, SettingsItem } from '../../types/api'
 
 const emptyStats: DashboardStats = {
   todayVisitors: 0,
@@ -94,6 +94,7 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>(emptyStats)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [settings, setSettings] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let mounted = true
@@ -117,6 +118,18 @@ export default function AdminDashboardPage() {
         }
       })
 
+    getSettings()
+      .then((res) => {
+        if (mounted) {
+          const mapped = ((res.data || []) as SettingsItem[]).reduce<Record<string, string>>((acc, item) => {
+            if (item.keyName) acc[item.keyName] = item.settingValue || ''
+            return acc
+          }, {})
+          setSettings(mapped)
+        }
+      })
+      .catch((err) => console.error('Failed to load settings on dashboard', err))
+
     return () => {
       mounted = false
     }
@@ -127,17 +140,73 @@ export default function AdminDashboardPage() {
     return totalCapacity > 0 ? Math.round((stats.bookings / totalCapacity) * 100) : 0
   }, [stats.availableSlots, stats.bookings])
 
+  // Helper to compute operational status
+  const todayStatus = useMemo(() => {
+    const isBookingEnabled = settings.BOOKING_ENABLED !== 'false'
+    if (!isBookingEnabled) return { label: 'Suspended (Offline)', color: '#D32F2F' }
+
+    const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+    const weeklyHolidays = settings.weeklyHolidays
+      ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : ['Sunday']
+    if (weeklyHolidays.includes(todayDayName)) {
+      return { label: 'Closed (Weekly Holiday)', color: '#D32F2F' }
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const specialHolidays = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+    if (specialHolidays.includes(todayStr)) {
+      return { label: 'Closed (Special Holiday)', color: '#D32F2F' }
+    }
+
+    return { label: 'Open & Active', color: '#2E7D32' }
+  }, [settings])
+
+  // Helper to compute next holiday
+  const nextHoliday = useMemo(() => {
+    const today = new Date()
+    const specialHolidays = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+    const weeklyHolidays = settings.weeklyHolidays
+      ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : ['Sunday']
+
+    for (let i = 1; i <= 30; i++) {
+      const nextDate = new Date()
+      nextDate.setDate(today.getDate() + i)
+      const nextDateStr = nextDate.toISOString().slice(0, 10)
+      const nextDayName = nextDate.toLocaleDateString('en-US', { weekday: 'long' })
+
+      if (specialHolidays.includes(nextDateStr)) {
+        return `${nextDateStr} (Special)`
+      }
+      if (weeklyHolidays.includes(nextDayName)) {
+        return `${nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${nextDayName.substring(0, 3)})`
+      }
+    }
+    return 'None scheduled'
+  }, [settings])
+
+  const lunchTimings = useMemo(() => {
+    const start = settings.lunchBreakStart || '01:00 PM'
+    const end = settings.lunchBreakEnd || '02:00 PM'
+    return `${start} - ${end}`
+  }, [settings])
+
   const metricCards = [
-    { label: 'Total Members', value: stats.registeredMembers, icon: GroupRounded, color: '#2E7D32' },
-    { label: 'Active Members', value: stats.activeMembers, icon: CheckCircleRounded, color: '#1B5E20' },
-    { label: 'Pending Registrations', value: stats.pendingRegistrations, icon: PendingActionsRounded, color: '#C9A227' },
-    { label: "Today's Bookings", value: stats.bookings, icon: CalendarMonthRounded, color: '#2E7D32' },
-    { label: "Today's Visitors", value: stats.todayVisitors, icon: TodayRounded, color: '#163B2A' },
-    { label: 'Available Slots', value: stats.availableSlots, icon: EventAvailableRounded, color: '#2E7D32' },
-    { label: 'Total Slots', value: stats.totalSlots, icon: DashboardRounded, color: '#163B2A' },
-    { label: 'Holidays', value: 'Not configured', icon: SettingsRounded, color: '#7A8F4C' },
-    { label: 'Grocery Availability', value: stats.groceryAvailable, icon: LocalMallRounded, color: '#2E7D32' },
-    { label: 'Liquor Availability', value: stats.liquorAvailable, icon: LiquorRounded, color: '#C9A227' },
+    { label: 'Total Members', value: stats.registeredMembers, icon: GroupRounded, color: '#1E3A8A' },
+    { label: 'Active Members', value: stats.activeMembers, icon: CheckCircleRounded, color: '#10B981' },
+    { label: 'Pending Registrations', value: stats.pendingRegistrations, icon: PendingActionsRounded, color: '#F59E0B' },
+    { label: "Today's Bookings", value: stats.bookings, icon: CalendarMonthRounded, color: '#3B82F6' },
+    { label: "Today's Visitors", value: stats.todayVisitors, icon: TodayRounded, color: '#4F46E5' },
+    { label: 'Available Slots', value: stats.availableSlots, icon: EventAvailableRounded, color: '#059669' },
+    { label: 'Total Slots', value: stats.totalSlots, icon: DashboardRounded, color: '#6B7280' },
+    { label: 'Next Holiday', value: nextHoliday, icon: SettingsRounded, color: '#EF4444' },
+    { label: 'Grocery Availability', value: stats.groceryAvailable, icon: LocalMallRounded, color: '#10B981' },
+    { label: 'Liquor Availability', value: stats.liquorAvailable, icon: LiquorRounded, color: '#F59E0B' },
   ]
 
   return (
@@ -170,6 +239,43 @@ export default function AdminDashboardPage() {
         </Stack>
 
         {error && <Alert severity="error" sx={{ borderRadius: '10px' }}>{error}</Alert>}
+
+        {/* TODAY'S OPERATIONAL STATUS PANEL */}
+        <Card sx={{ borderRadius: '14px', border: '1px solid #E5E7EB', boxShadow: '0 4px 18px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+          <Box sx={{ p: 2.5, bgcolor: '#F9FAFB' }}>
+            <Grid container spacing={3} alignItems="center">
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Canteen Status Today
+                </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: todayStatus.color, boxShadow: `0 0 8px ${todayStatus.color}` }} />
+                  <Typography variant="h6" fontWeight={700} sx={{ color: '#111827' }}>
+                    {todayStatus.label}
+                  </Typography>
+                </Stack>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Lunch Break Hours
+                </Typography>
+                <Typography variant="body1" fontWeight={600} color="#374151" sx={{ mt: 0.5 }}>
+                  {lunchTimings}
+                </Typography>
+              </Grid>
+
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Next Scheduled Holiday
+                </Typography>
+                <Typography variant="body1" fontWeight={600} color="#374151" sx={{ mt: 0.5 }}>
+                  {nextHoliday}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Box>
+        </Card>
 
         <Grid container spacing={2}>
           {metricCards.map((card, index) => {

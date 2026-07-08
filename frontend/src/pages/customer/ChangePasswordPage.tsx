@@ -8,7 +8,10 @@ import {
     Stack,
     TextField,
     Typography,
+    IconButton,
+    InputAdornment,
 } from '@mui/material'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { changePassword } from '../../services/api'
 
 export default function ChangePasswordPage() {
@@ -17,6 +20,10 @@ export default function ChangePasswordPage() {
     const [oldPassword, setOldPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+
+    const [showOldPassword, setShowOldPassword] = useState(false)
+    const [showNewPassword, setShowNewPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState('')
@@ -81,32 +88,71 @@ export default function ChangePasswordPage() {
 
                         <TextField
                             label="Old Password"
-                            type="password"
+                            type={showOldPassword ? 'text' : 'password'}
                             size="small"
                             value={oldPassword}
                             onChange={(e) => setOldPassword(e.target.value)}
                             fullWidth
                             slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle old password visibility"
+                                            onClick={() => setShowOldPassword(!showOldPassword)}
+                                            edge="end"
+                                        >
+                                            {showOldPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
 
                         <TextField
                             label="New Password"
-                            type="password"
+                            type={showNewPassword ? 'text' : 'password'}
                             size="small"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             fullWidth
                             slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle new password visibility"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            edge="end"
+                                        >
+                                            {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
 
                         <TextField
                             label="Confirm Password"
-                            type="password"
+                            type={showConfirmPassword ? 'text' : 'password'}
                             size="small"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             fullWidth
                             slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle confirm password visibility"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            edge="end"
+                                        >
+                                            {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
 
                         <Box display="flex" justifyContent="flex-end" mt={1}>

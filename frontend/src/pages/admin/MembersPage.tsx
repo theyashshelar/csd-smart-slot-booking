@@ -564,11 +564,11 @@ function MemberDetails({ member }: { member: Member }) {
       <Grid container spacing={1}>
         {[
           ['Mobile', member.mobileNumber],
-          ['Date of Birth', member.dateOfBirth || 'Not captured'],
-          ['Grocery Card', member.groceryCardNumber || 'Not registered'],
-          ['Liquor Card', member.liquorCardNumber || 'Not registered'],
-          ['Email', 'Not captured by current registration form'],
-          ['Registration Date', 'Not captured by current backend'],
+          ['Date of Birth', member.dateOfBirth || 'Not Provided'],
+          ['Grocery Card', member.groceryCardNumber || 'Not Provided'],
+          ['Liquor Card', member.liquorCardNumber || 'Not Provided'],
+          ['Email', 'Not Provided'],
+          ['Registration Date', 'Not Available'],
         ].map(([label, value]) => (
           <Grid key={label} size={{ xs: 12, sm: 6 }}>
             <Box sx={{ p: 1.2, borderRadius: '10px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>

@@ -35,8 +35,9 @@ import {
   createBooking,
   getCustomerProfile,
   getSlots,
+  getSettings,
 } from '../../services/api'
-import type { CustomerProfile, Slot } from '../../types/api'
+import type { CustomerProfile, Slot, SettingsItem } from '../../types/api'
 
 type CardType = 'GROCERY' | 'LIQUOR'
 
@@ -70,6 +71,56 @@ export default function CustomerBookSlotPage() {
   const [booking, setBooking] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [error, setError] = useState('')
+  const [settings, setSettings] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let mounted = true
+    getSettings()
+      .then((res) => {
+        if (mounted) {
+          const mapped = ((res.data || []) as SettingsItem[]).reduce<Record<string, string>>((acc, item) => {
+            if (item.keyName) acc[item.keyName] = item.settingValue || ''
+            return acc
+          }, {})
+          setSettings(mapped)
+        }
+      })
+      .catch((err) => console.error('Failed to load settings in booking', err))
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const holidayOrDisabledReason = useMemo(() => {
+    if (!bookingDate) return null
+
+    // 1. Check booking enabled
+    const bookingEnabled = settings.BOOKING_ENABLED !== 'false'
+    if (!bookingEnabled) {
+      return 'Booking is currently offline/disabled.'
+    }
+
+    // 2. Check weekly holidays
+    const weeklyHolidays = settings.weeklyHolidays
+      ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : ['Sunday']
+    const selectedDateObj = new Date(`${bookingDate}T00:00:00`)
+    const dayOfWeek = selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
+    if (weeklyHolidays.includes(dayOfWeek)) {
+      return `Selected date is a Weekly Holiday (${dayOfWeek}).`
+    }
+
+    // 3. Check special holidays
+    const specialHolidays = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+    if (specialHolidays.includes(bookingDate)) {
+      return 'Selected date is a Special Holiday.'
+    }
+
+    return null
+  }, [bookingDate, settings])
 
   useEffect(() => {
     let mounted = true
@@ -103,7 +154,7 @@ export default function CustomerBookSlotPage() {
   }, [memberId])
 
   useEffect(() => {
-    if (!cardType || !bookingDate) {
+    if (!cardType || !bookingDate || holidayOrDisabledReason) {
       setSlots([])
       setSelectedSlot(null)
       return
@@ -135,7 +186,7 @@ export default function CustomerBookSlotPage() {
     return () => {
       mounted = false
     }
-  }, [bookingDate, cardType])
+  }, [bookingDate, cardType, holidayOrDisabledReason])
 
   const activeStep = useMemo(() => {
     if (reviewOpen) return 4
@@ -305,6 +356,12 @@ export default function CustomerBookSlotPage() {
                     </Box>
                   </Grid>
                 </Grid>
+
+                {holidayOrDisabledReason && (
+                  <Alert severity="error" sx={{ mt: 2, borderRadius: '10px', fontWeight: 600 }}>
+                    No slots available today due to holiday. ({holidayOrDisabledReason})
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -484,7 +541,7 @@ export default function CustomerBookSlotPage() {
               </Box>
               <Button
                 variant="contained"
-                disabled={!profile || !bookingDate || !cardType || !selectedSlot}
+                disabled={!profile || !bookingDate || !cardType || !selectedSlot || Boolean(holidayOrDisabledReason)}
                 endIcon={<ArrowForwardRounded />}
                 onClick={() => setReviewOpen(true)}
                 sx={{ height: 40 }}

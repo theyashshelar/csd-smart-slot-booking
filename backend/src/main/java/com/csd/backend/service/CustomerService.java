@@ -7,6 +7,7 @@ import com.csd.backend.repository.AuditLogRepository;
 import com.csd.backend.repository.BookingRepository;
 import com.csd.backend.repository.MemberRepository;
 import com.csd.backend.repository.SlotRepository;
+import com.csd.backend.repository.SettingsRepository;
 import com.csd.backend.util.QRCodeGenerator;
 import com.csd.backend.util.TokenGenerator;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class CustomerService {
     private final SlotRepository slotRepository;
     private final BookingRepository bookingRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SettingsRepository settingsRepository;
     private final SmsService smsService;
     private final QRCodeGenerator qrCodeGenerator;
     private final TokenGenerator tokenGenerator;
@@ -94,6 +96,49 @@ public class CustomerService {
                 .build();
     }
 
+    private boolean isHolidayOrDisabled(LocalDate date) {
+        // 1. Check booking enabled
+        boolean bookingEnabled = settingsRepository.findByKeyName("BOOKING_ENABLED")
+                .map(Settings::getSettingValue)
+                .map(Boolean::parseBoolean)
+                .orElse(true);
+        if (!bookingEnabled) {
+            return true;
+        }
+
+        // 2. Check weekly holidays
+        String weeklyHolidays = settingsRepository.findByKeyName("weeklyHolidays")
+                .map(Settings::getSettingValue)
+                .orElse("Sunday");
+        String dayOfWeek = date.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH);
+        boolean isWeeklyHoliday = java.util.Arrays.stream(weeklyHolidays.split(","))
+                .map(String::trim)
+                .anyMatch(day -> day.equalsIgnoreCase(dayOfWeek));
+        if (isWeeklyHoliday) {
+            return true;
+        }
+
+        // 3. Check special holidays
+        String specialHolidaysSetting = settingsRepository.findByKeyName("specialHolidays")
+                .map(Settings::getSettingValue)
+                .orElse("");
+        boolean isSpecialHoliday = java.util.Arrays.stream(specialHolidaysSetting.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(dateStr -> {
+                    try {
+                        return LocalDate.parse(dateStr).equals(date);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                });
+        if (isSpecialHoliday) {
+            return true;
+        }
+
+        return false;
+    }
+
     //Available Slots
     public List<Slot> getAvailableSlots(CardType cardType) {
 
@@ -108,6 +153,10 @@ public class CustomerService {
                 bookingDate != null
                         ? bookingDate
                         : LocalDate.now();
+
+        if (isHolidayOrDisabled(effectiveDate)) {
+            return List.of();
+        }
 
         return slotRepository
                 .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType)
@@ -125,8 +174,8 @@ public class CustomerService {
                     availableSlot.setBookedCount(
                             bookingRepository
                                     .findBySlotIdAndBookingDate(
-                                            slot.getId(),
-                                            effectiveDate
+                                             slot.getId(),
+                                             effectiveDate
                                     )
                                     .stream()
                                     .filter(booking ->
@@ -149,6 +198,12 @@ public class CustomerService {
                 request.bookingDate() != null
                         ? request.bookingDate()
                         : LocalDate.now();
+
+        if (isHolidayOrDisabled(bookingDate)) {
+            throw new BadRequestException(
+                    "No slots available today due to holiday."
+            );
+        }
 
         if (bookingDate.isBefore(LocalDate.now())) {
             throw new BadRequestException(
