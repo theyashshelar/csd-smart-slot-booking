@@ -289,12 +289,23 @@ export default function SlotsPage() {
                                         <Stack spacing={1.5}>
                                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                                 <Typography variant="subtitle1" fontWeight={600} color="#111827">{slot.label}</Typography>
-                                                <Chip
-                                                    label={slot.cardType}
-                                                    size="small"
-                                                    color={slot.cardType === 'GROCERY' ? 'primary' : 'secondary'}
-                                                    sx={{ borderRadius: '999px', fontSize: '0.7rem', height: 20 }}
-                                                />
+                                                <Stack direction="row" spacing={0.5}>
+                                                    {!slot.active && (
+                                                        <Chip
+                                                            label="Inactive"
+                                                            size="small"
+                                                            color="error"
+                                                            variant="outlined"
+                                                            sx={{ borderRadius: '999px', fontSize: '0.7rem', height: 20 }}
+                                                        />
+                                                    )}
+                                                    <Chip
+                                                        label={slot.cardType}
+                                                        size="small"
+                                                        color={slot.cardType === 'GROCERY' ? 'primary' : 'secondary'}
+                                                        sx={{ borderRadius: '999px', fontSize: '0.7rem', height: 20 }}
+                                                    />
+                                                </Stack>
                                             </Stack>
                                             <Typography variant="body2" color="text.secondary">
                                                 Time: {slot.startTime} - {slot.endTime}

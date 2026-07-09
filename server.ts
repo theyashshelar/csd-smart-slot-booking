@@ -26,63 +26,7 @@ const upload = multer({ storage })
 // IN-MEMORY DATABASE STATE
 // ==========================================
 
-let members = [
-  {
-    id: 1,
-    fullName: 'Member 1',
-    mobileNumber: '9876543211',
-    dateOfBirth: '1995-01-01',
-    password: bcrypt.hashSync('member123', 10),
-    groceryCardNumber: 'GRC1001',
-    liquorCardNumber: 'LQC1001',
-    registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
-  },
-  {
-    id: 2,
-    fullName: 'Member 2',
-    mobileNumber: '9876543212',
-    dateOfBirth: '1995-01-02',
-    password: bcrypt.hashSync('member123', 10),
-    groceryCardNumber: 'GRC1002',
-    liquorCardNumber: 'LQC1002',
-    registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
-  },
-  {
-    id: 3,
-    fullName: 'Member 3',
-    mobileNumber: '9876543213',
-    dateOfBirth: '1995-01-03',
-    password: bcrypt.hashSync('member123', 10),
-    groceryCardNumber: 'GRC1003',
-    liquorCardNumber: 'LQC1003',
-    registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
-  },
-  {
-    id: 4,
-    fullName: 'Member 4',
-    mobileNumber: '9876543214',
-    dateOfBirth: '1995-01-04',
-    password: bcrypt.hashSync('member123', 10),
-    groceryCardNumber: 'GRC1004',
-    liquorCardNumber: 'LQC1004',
-    registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
-  },
-  {
-    id: 5,
-    fullName: 'Member 5',
-    mobileNumber: '9876543215',
-    dateOfBirth: '1995-01-05',
-    password: bcrypt.hashSync('member123', 10),
-    groceryCardNumber: 'GRC1005',
-    liquorCardNumber: 'LQC1005',
-    registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
-  }
-]
+let members = []
 
 let operators = [
   {
@@ -105,31 +49,7 @@ let slots = [
   { id: 5, label: '02:00-03:00', cardType: 'LIQUOR' as const, startTime: '14:00', endTime: '15:00', capacity: 30, bookedCount: 0, active: true }
 ]
 
-let bookings = [
-  {
-    id: 1,
-    memberId: 1,
-    slotId: 1,
-    token: 'G-S01-001',
-    bookingDate: new Date().toISOString().split('T')[0],
-    bookingLabel: 'GROCERY',
-    status: 'CHECKED_IN' as const,
-    smsStatus: 'SENT',
-    createdAt: new Date().toISOString(),
-    checkedInAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    memberId: 2,
-    slotId: 4,
-    token: 'L-S04-001',
-    bookingDate: new Date().toISOString().split('T')[0],
-    bookingLabel: 'LIQUOR',
-    status: 'BOOKED' as const,
-    smsStatus: 'SENT',
-    createdAt: new Date().toISOString()
-  }
-]
+let bookings = []
 
 let settings = [
   { id: 1, keyName: 'tokenPrefix', settingValue: 'G' }
@@ -849,6 +769,10 @@ app.post('/api/customer/book', (req, res) => {
 
   if (!member) return res.status(404).json({ error: 'Member not found' })
   if (!slot) return res.status(404).json({ error: 'Slot not found' })
+
+  if (!slot.active) {
+    return res.status(400).json({ error: 'This time slot is currently inactive.' })
+  }
 
   // Check if slot capacity is full
   const bookedOnDate = bookings.filter(b => b.slotId === slot.id && b.bookingDate === bDate && b.status !== 'CANCELLED').length
