@@ -387,6 +387,7 @@ public class CustomerService {
                 .groceryCardNumber(member.getGroceryCardNumber())
                 .liquorCardNumber(member.getLiquorCardNumber())
                 .registrationStatus(member.getRegistrationStatus())
+                .registrationDate(member.getRegistrationDate())
                 .build();
     }
 
@@ -419,6 +420,7 @@ public class CustomerService {
                 .groceryCardNumber(saved.getGroceryCardNumber())
                 .liquorCardNumber(saved.getLiquorCardNumber())
                 .registrationStatus(saved.getRegistrationStatus())
+                .registrationDate(saved.getRegistrationDate())
                 .build();
     }
 

@@ -46,4 +46,7 @@ public class Member {
     @Builder.Default
     private Role role = Role.CUSTOMER;
 
+    @Column(name = "registration_date")
+    private java.time.LocalDateTime registrationDate;
+
 }

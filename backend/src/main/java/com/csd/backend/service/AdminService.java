@@ -304,6 +304,7 @@ public class AdminService {
 
         member.setRole(Role.CUSTOMER);
         member.setRegistrationStatus(RegistrationStatus.APPROVED);
+        member.setRegistrationDate(java.time.LocalDateTime.now());
 
         Member savedMember = memberRepository.save(member);
 

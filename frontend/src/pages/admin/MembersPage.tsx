@@ -269,6 +269,24 @@ export default function MembersPage() {
       },
     },
     {
+      field: 'registrationDate',
+      headerName: 'Registration Date',
+      minWidth: 180,
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2">
+            {row.registrationDate
+              ? new Date(row.registrationDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })
+              : 'Not Available'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
       sortable: false,
@@ -568,7 +586,18 @@ function MemberDetails({ member }: { member: Member }) {
           ['Grocery Card', member.groceryCardNumber || 'Not Provided'],
           ['Liquor Card', member.liquorCardNumber || 'Not Provided'],
           ['Email', 'Not Provided'],
-          ['Registration Date', 'Not Available'],
+          [
+            'Registration Date',
+            member.registrationDate
+              ? new Date(member.registrationDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              : 'Not Available'
+          ],
         ].map(([label, value]) => (
           <Grid key={label} size={{ xs: 12, sm: 6 }}>
             <Box sx={{ p: 1.2, borderRadius: '10px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>

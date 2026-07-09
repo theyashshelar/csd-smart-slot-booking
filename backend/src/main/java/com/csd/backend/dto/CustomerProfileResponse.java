@@ -20,7 +20,9 @@ public record CustomerProfileResponse(
 
         String liquorCardNumber,
 
-        RegistrationStatus registrationStatus
+        RegistrationStatus registrationStatus,
+
+        java.time.LocalDateTime registrationDate
 
 ) {
 }

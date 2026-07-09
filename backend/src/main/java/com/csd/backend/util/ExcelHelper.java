@@ -191,7 +191,7 @@ public class ExcelHelper {
             row.createCell(4).setCellValue(m.getGroceryCardNumber() != null ? m.getGroceryCardNumber() : "N/A");
             row.createCell(5).setCellValue(m.getLiquorCardNumber() != null ? m.getLiquorCardNumber() : "N/A");
             row.createCell(6).setCellValue(m.getRegistrationStatus() != null ? m.getRegistrationStatus().name() : "");
-            row.createCell(7).setCellValue("N/A");
+            row.createCell(7).setCellValue(m.getRegistrationDate() != null ? m.getRegistrationDate().toString() : "Not Available");
         }
 
         for (int i = 0; i < columns.length; i++) {

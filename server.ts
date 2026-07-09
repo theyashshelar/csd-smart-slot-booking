@@ -226,7 +226,8 @@ app.post('/api/auth/register', (req, res) => {
     groceryCardNumber,
     liquorCardNumber,
     registrationStatus: 'PENDING' as const,
-    role: 'CUSTOMER' as const
+    role: 'CUSTOMER' as const,
+    registrationDate: new Date().toISOString()
   }
 
   members.push(newMember)
@@ -245,7 +246,8 @@ app.post('/api/auth/register', (req, res) => {
     groceryCardNumber: newMember.groceryCardNumber,
     liquorCardNumber: newMember.liquorCardNumber,
     registrationStatus: newMember.registrationStatus,
-    role: newMember.role
+    role: newMember.role,
+    registrationDate: newMember.registrationDate
   })
 })
 
@@ -437,7 +439,8 @@ app.post('/api/admin/members', (req, res) => {
     groceryCardNumber,
     liquorCardNumber,
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const
+    role: 'CUSTOMER' as const,
+    registrationDate: new Date().toISOString()
   }
   members.push(newMember)
   
@@ -710,7 +713,8 @@ app.get('/api/admin/export-members', (req, res) => {
     'Mobile Number': m.mobileNumber,
     'Grocery Card': m.groceryCardNumber || '',
     'Liquor Card': m.liquorCardNumber || '',
-    'Status': m.registrationStatus
+    'Status': m.registrationStatus,
+    'Registration Date': m.registrationDate ? new Date(m.registrationDate).toISOString().replace('T', ' ').substring(0, 19) : 'Not Available'
   }))
 
   const ws = xlsx.utils.json_to_sheet(membersData)
@@ -931,7 +935,8 @@ app.get('/api/customer/profile/:memberId', (req, res) => {
     dateOfBirth: m.dateOfBirth,
     groceryCardNumber: m.groceryCardNumber || '',
     liquorCardNumber: m.liquorCardNumber || '',
-    registrationStatus: m.registrationStatus
+    registrationStatus: m.registrationStatus,
+    registrationDate: m.registrationDate || null
   })
 })
 

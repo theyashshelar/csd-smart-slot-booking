@@ -10,6 +10,7 @@ export interface Member {
   registrationStatus?: string;
   role?: string;
   verified?: boolean;
+  registrationDate?: string | null;
 }
 
 export interface Slot {
@@ -43,6 +44,7 @@ export interface CustomerProfile {
   groceryCardNumber: string | null
   liquorCardNumber: string | null
   registrationStatus: string
+  registrationDate?: string | null
 }
 
 export interface DashboardStats {
