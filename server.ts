@@ -36,8 +36,7 @@ let members = [
     groceryCardNumber: 'GRC1001',
     liquorCardNumber: 'LQC1001',
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const,
-    registrationDate: '2026-07-01T10:00:00.000Z'
+    role: 'CUSTOMER' as const
   },
   {
     id: 2,
@@ -48,8 +47,7 @@ let members = [
     groceryCardNumber: 'GRC1002',
     liquorCardNumber: 'LQC1002',
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const,
-    registrationDate: '2026-07-02T11:00:00.000Z'
+    role: 'CUSTOMER' as const
   },
   {
     id: 3,
@@ -60,8 +58,7 @@ let members = [
     groceryCardNumber: 'GRC1003',
     liquorCardNumber: 'LQC1003',
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const,
-    registrationDate: '2026-07-03T12:00:00.000Z'
+    role: 'CUSTOMER' as const
   },
   {
     id: 4,
@@ -72,8 +69,7 @@ let members = [
     groceryCardNumber: 'GRC1004',
     liquorCardNumber: 'LQC1004',
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const,
-    registrationDate: '2026-07-04T13:00:00.000Z'
+    role: 'CUSTOMER' as const
   },
   {
     id: 5,
@@ -84,8 +80,7 @@ let members = [
     groceryCardNumber: 'GRC1005',
     liquorCardNumber: 'LQC1005',
     registrationStatus: 'APPROVED' as const,
-    role: 'CUSTOMER' as const,
-    registrationDate: '2026-07-05T14:00:00.000Z'
+    role: 'CUSTOMER' as const
   }
 ]
 
@@ -692,8 +687,7 @@ app.post('/api/admin/import-members', upload.single('file'), (req, res) => {
           groceryCardNumber,
           liquorCardNumber,
           registrationStatus: 'APPROVED',
-          role: 'CUSTOMER',
-          registrationDate: new Date().toISOString()
+          role: 'CUSTOMER'
         })
         count++
       }
@@ -856,10 +850,6 @@ app.post('/api/customer/book', (req, res) => {
   if (!member) return res.status(404).json({ error: 'Member not found' })
   if (!slot) return res.status(404).json({ error: 'Slot not found' })
 
-  if (!slot.active) {
-    return res.status(400).json({ error: 'This time slot is inactive and cannot be booked.' })
-  }
-
   // Check if slot capacity is full
   const bookedOnDate = bookings.filter(b => b.slotId === slot.id && b.bookingDate === bDate && b.status !== 'CANCELLED').length
   if (bookedOnDate >= slot.capacity) {
@@ -966,8 +956,7 @@ app.put('/api/customer/profile/:memberId', (req, res) => {
     dateOfBirth: members[idx].dateOfBirth,
     groceryCardNumber: members[idx].groceryCardNumber || '',
     liquorCardNumber: members[idx].liquorCardNumber || '',
-    registrationStatus: members[idx].registrationStatus,
-    registrationDate: members[idx].registrationDate || null
+    registrationStatus: members[idx].registrationStatus
   })
 })
 
