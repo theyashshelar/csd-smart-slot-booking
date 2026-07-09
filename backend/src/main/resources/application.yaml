@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/csd_booking
-    username: yash
-    password: 123
+    url: jdbc:postgresql://ep-late-firefly-ahilmwdj-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
+    username: neondb_owner
+    password: npg_DvLsC7rB9geu
 
   jpa:
     hibernate:
