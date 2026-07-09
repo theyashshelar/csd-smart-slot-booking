@@ -31,8 +31,12 @@ public class AuthService {
     //Member Registration
     public RegisterResponse register(RegisterRequest request) {
 
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new IllegalArgumentException("Passwords do not match.");
+        if (!request.getPassword().matches(
+                "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&^#()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{8,}$")) {
+
+            throw new IllegalArgumentException(
+                    "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+            );
         }
 
         if (memberRepository.existsByMobileNumber(request.getMobileNumber())) {
@@ -53,13 +57,23 @@ public class AuthService {
             throw new IllegalArgumentException("Liquor card number is already registered.");
         }
 
+        String groceryCardNumber =
+                (request.getGroceryCardNumber() == null || request.getGroceryCardNumber().isBlank())
+                                ? null
+                                : request.getGroceryCardNumber();
+
+        String liquorCardNumber =
+                (request.getLiquorCardNumber() == null || request.getLiquorCardNumber().isBlank())
+                                ? null
+                                :request.getLiquorCardNumber();
+
         Member member = Member.builder()
                 .fullName(request.getFullName())
                 .mobileNumber(request.getMobileNumber())
                 .dateOfBirth(request.getDateOfBirth())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .groceryCardNumber(request.getGroceryCardNumber())
-                .liquorCardNumber(request.getLiquorCardNumber())
+                .groceryCardNumber(groceryCardNumber)
+                .liquorCardNumber(liquorCardNumber)
                 .role(Role.CUSTOMER)
                 .registrationStatus(RegistrationStatus.PENDING)
                 .build();
