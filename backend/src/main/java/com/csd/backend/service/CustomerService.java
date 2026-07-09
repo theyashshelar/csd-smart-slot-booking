@@ -219,6 +219,10 @@ public class CustomerService {
                 .orElseThrow(() ->
                         new BadRequestException("Slot not found"));
 
+        if (!Boolean.TRUE.equals(slot.getActive())) {
+            throw new BadRequestException("This time slot is inactive and cannot be booked.");
+        }
+
         if (slot.getCardType() != request.cardType()) {
             throw new BadRequestException(
                     "Selected slot does not match card type."

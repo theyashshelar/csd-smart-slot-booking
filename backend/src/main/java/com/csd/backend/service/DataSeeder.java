@@ -66,32 +66,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedMembers() {
-
-        if (memberRepository.count() > 0)
-            return;
-
-        for (int i = 1; i <= 5; i++) {
-
-            Member member = new Member();
-
-            member.setFullName("Member " + i);
-            member.setMobileNumber("987654321" + i);
-            member.setDateOfBirth(java.time.LocalDate.of(1995, 1, i));
-
-            member.setPassword(
-                    passwordEncoder.encode("member123")
-            );
-
-            member.setGroceryCardNumber("GRC100" + i);
-            member.setLiquorCardNumber("LQC100" + i);
-
-            member.setRole(Role.CUSTOMER);
-            member.setRegistrationStatus(
-                    RegistrationStatus.APPROVED
-            );
-
-            memberRepository.save(member);
-        }
+        // No dummy/mock member directory data should be seeded
     }
 
     private void seedSlots() {

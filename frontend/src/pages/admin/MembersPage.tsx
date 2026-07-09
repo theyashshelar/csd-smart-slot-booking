@@ -476,6 +476,7 @@ export default function MembersPage() {
                   columns={columns}
                   getRowId={(row) => row.id}
                   loading={loading}
+                  localeText={{ noRowsLabel: 'No members found.' }}
                   disableRowSelectionOnClick
                   rowHeight={64}
                   pageSizeOptions={[5, 10, 25]}

@@ -13,4 +13,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     List<Slot> findByCardTypeAndActiveTrueOrderByStartTimeAsc(
             CardType cardType
     );
+
+    List<Slot> findAllByOrderByStartTimeAsc();
 }

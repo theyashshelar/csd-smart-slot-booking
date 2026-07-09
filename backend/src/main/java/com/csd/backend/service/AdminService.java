@@ -374,10 +374,10 @@ public class AdminService {
         );
     }
 
-    //Get All Active Slots
+    //Get All Slots
     public List<Slot> getSlots() {
 
-        return slotRepository.findByActiveTrueOrderByStartTimeAsc();
+        return slotRepository.findAllByOrderByStartTimeAsc();
     }
 
     //Create Slots
