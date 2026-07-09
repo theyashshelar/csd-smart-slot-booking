@@ -70,8 +70,12 @@ export default function CustomerRegisterPage() {
         dateOfBirth,
         password,
         confirmPassword,
-        groceryCardNumber,
-        liquorCardNumber,
+        groceryCardNumber: groceryCardNumber
+          ? `GA${groceryCardNumber.replace(/^GA/i, '')}`
+          : '',
+        liquorCardNumber: liquorCardNumber
+          ? `LA${liquorCardNumber.replace(/^LA/i, '')}`
+          : '',
       })
 
       setSuccess('Registration submitted successfully. Please wait for admin approval before logging in.')
@@ -241,7 +245,18 @@ export default function CustomerRegisterPage() {
                       label="Grocery Card Number"
                       value={groceryCardNumber}
                       onChange={(event) => setGroceryCardNumber(event.target.value)}
-                      slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                      slotProps={{
+                          htmlInput: {
+                              style: { borderRadius: '10px' },
+                          },
+                          input: {
+                              startAdornment: (
+                                  <InputAdornment position="start">
+                                      GA
+                                  </InputAdornment>
+                              ),
+                          },
+                      }}
                     />
                   </Grid>
 
@@ -252,7 +267,18 @@ export default function CustomerRegisterPage() {
                       label="Liquor Card Number"
                       value={liquorCardNumber}
                       onChange={(event) => setLiquorCardNumber(event.target.value)}
-                      slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                      slotProps={{
+                          htmlInput:
+                              { style: { borderRadius: '10px' },
+                          },
+                            input: {
+                              startAdornment: (
+                                  <InputAdornment position="start">
+                                      LA
+                                  </InputAdornment>
+                              ),
+                            },
+                      }}
                     />
                   </Grid>
                 </Grid>

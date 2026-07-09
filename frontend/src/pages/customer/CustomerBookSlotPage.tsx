@@ -108,7 +108,7 @@ export default function CustomerBookSlotPage() {
     const selectedDateObj = new Date(`${bookingDate}T00:00:00`)
     const dayOfWeek = selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
     if (weeklyHolidays.includes(dayOfWeek)) {
-      return `Selected date is a Weekly Holiday (${dayOfWeek}).`
+      return `Selected date is a Weekly Holiday ${dayOfWeek}.`
     }
 
     // 3. Check special holidays
@@ -359,7 +359,7 @@ export default function CustomerBookSlotPage() {
 
                 {holidayOrDisabledReason && (
                   <Alert severity="error" sx={{ mt: 2, borderRadius: '10px', fontWeight: 600 }}>
-                    No slots available today due to holiday. ({holidayOrDisabledReason})
+                    No slots available today due to holiday. {holidayOrDisabledReason}
                   </Alert>
                 )}
               </CardContent>
