@@ -213,10 +213,6 @@ public class CustomerService {
     @Transactional
     public Booking createBooking(BookingRequest request) {
 
-        // Standard JDBC DATE mapping using java.time.LocalDate.
-        // Storing dates as LocalDate (year-month-day) rather than Timestamp/Instant ensures that the date
-        // remains absolutely identical across different timezones. Timezone drift is avoided because
-        // we completely bypass timezone conversions and store the raw date, which aligns with standard DATE in PostgreSQL.
         LocalDate bookingDate =
                 request.bookingDate() != null
                         ? request.bookingDate()

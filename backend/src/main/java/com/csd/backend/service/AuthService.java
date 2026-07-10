@@ -140,6 +140,8 @@ public class AuthService {
 
     //Customer Login
     //Mobile No and Password
+    //Customer Login
+//Mobile No and Password
     public AuthResponse loginCustomer(AuthRequest request) {
 
         Member member = memberRepository
@@ -155,11 +157,15 @@ public class AuthService {
             throw new ForbiddenException(
                     "Your account is pending administrator approval. Please try again after your registration has been approved."
             );
-        } else if (member.getRegistrationStatus() == RegistrationStatus.REJECTED) {
+        }
+
+        if (member.getRegistrationStatus() == RegistrationStatus.REJECTED) {
             throw new ForbiddenException(
                     "Your registration has been rejected. Please contact the administrator."
             );
-        } else if (member.getRegistrationStatus() != RegistrationStatus.APPROVED) {
+        }
+
+        if (member.getRegistrationStatus() != RegistrationStatus.APPROVED) {
             throw new UnauthorizedException("Invalid mobile number or password");
         }
 
@@ -174,5 +180,4 @@ public class AuthService {
                 member.getId(),
                 member.getFullName()
         );
-    }
-}
+    }}
