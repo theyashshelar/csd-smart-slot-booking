@@ -153,7 +153,7 @@ public class AuthService {
 
         if (member.getRegistrationStatus() == RegistrationStatus.PENDING) {
             throw new ForbiddenException(
-                    "Your registration is awaiting administrator approval. Please log in after your account has been approved."
+                    "Your account is pending administrator approval. Please try again after your registration has been approved."
             );
         } else if (member.getRegistrationStatus() == RegistrationStatus.REJECTED) {
             throw new ForbiddenException(

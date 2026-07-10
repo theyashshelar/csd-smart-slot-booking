@@ -31,8 +31,8 @@ api.interceptors.response.use(
       const backendMsg = data?.message || data?.error || ''
 
       const url = error.config?.url || ''
-      const isAuthRequest = url.includes('/auth/')
-      const isCustomerLogin = url.includes('/auth/customer/login')
+      const isAuthRequest = url.includes('auth/')
+      const isCustomerLogin = url.includes('customer/login')
 
       if (isAuthRequest) {
         if (isCustomerLogin) {

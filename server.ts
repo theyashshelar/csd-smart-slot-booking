@@ -208,19 +208,19 @@ app.post('/api/auth/customer/login', (req, res) => {
   const member = members.find(m => m.mobileNumber === username)
 
   if (!member) {
-    return res.status(401).json({ error: 'Mobile number not found.' })
+    return res.status(401).json({ error: 'Unauthorized', message: 'Invalid mobile number or password.' })
   }
 
   if (!bcrypt.compareSync(password, member.password)) {
-    return res.status(401).json({ error: 'Invalid password.' })
+    return res.status(401).json({ error: 'Unauthorized', message: 'Invalid mobile number or password.' })
   }
 
   if (member.registrationStatus === 'PENDING') {
-    return res.status(403).json({ error: 'Your registration is pending approval.' })
+    return res.status(403).json({ error: 'Forbidden', message: 'Your account is pending administrator approval. Please try again after your registration has been approved.' })
   }
 
   if (member.registrationStatus === 'REJECTED') {
-    return res.status(403).json({ error: 'Your registration was rejected by administrator.' })
+    return res.status(403).json({ error: 'Forbidden', message: 'Your registration has been rejected. Please contact the administrator.' })
   }
 
   const token = jwt.sign({ id: member.id, username: member.mobileNumber, role: 'CUSTOMER' }, JWT_SECRET)
