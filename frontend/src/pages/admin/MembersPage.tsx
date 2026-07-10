@@ -294,8 +294,7 @@ export default function MembersPage() {
               ? new Date(row.registrationDate).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'short',
-                  day: 'numeric',
-                  timeZone: 'Asia/Kolkata'
+                  day: 'numeric'
                 })
               : 'Not Available'}
           </Typography>
@@ -611,8 +610,7 @@ function MemberDetails({ member }: { member: Member }) {
                   month: 'short',
                   day: 'numeric',
                   hour: '2-digit',
-                  minute: '2-digit',
-                  timeZone: 'Asia/Kolkata'
+                  minute: '2-digit'
                 })
               : 'Not Available'
           ],

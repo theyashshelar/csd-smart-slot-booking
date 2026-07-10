@@ -22,7 +22,7 @@ public record CustomerProfileResponse(
 
         RegistrationStatus registrationStatus,
 
-        java.time.Instant registrationDate
+        java.time.LocalDateTime registrationDate
 
 ) {
 }
