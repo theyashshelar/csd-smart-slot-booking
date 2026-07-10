@@ -42,6 +42,7 @@ import {
   rejectMember,
 } from '../../services/api'
 import type { Member } from '../../types/api'
+import { toast } from 'react-hot-toast'
 
 type MemberTab = 'all' | 'pending'
 type StatusFilter = 'ALL' | 'APPROVED' | 'PENDING' | 'REJECTED'
@@ -143,9 +144,13 @@ export default function MembersPage() {
     try {
       await importMembers(file)
       await loadMembers()
-      setSuccess('Members imported successfully.')
+      const msg = 'Members imported successfully.'
+      setSuccess(msg)
+      toast.success(msg)
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.response?.data || err.message || 'Import failed.')
+      const errMsg = err?.response?.data?.message || err?.response?.data || err.message || 'Import failed.'
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setActionLoading(false)
     }
@@ -164,9 +169,13 @@ export default function MembersPage() {
       link.download = 'members.xlsx'
       link.click()
       window.URL.revokeObjectURL(url)
-      setSuccess('Members export started.')
+      const msg = 'Members export started.'
+      setSuccess(msg)
+      toast.success(msg)
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Export failed.')
+      const errMsg = err?.response?.data?.message || err.message || 'Export failed.'
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setActionLoading(false)
     }
@@ -182,17 +191,23 @@ export default function MembersPage() {
     try {
       if (confirmAction === 'approve') {
         await approveMember(selectedMember.id)
-        setSuccess(`${selectedMember.fullName} approved successfully.`)
+        const msg = `${selectedMember.fullName} approved successfully.`
+        setSuccess(msg)
+        toast.success(msg)
       } else {
         await rejectMember(selectedMember.id)
-        setSuccess(`${selectedMember.fullName} rejected successfully.`)
+        const msg = `${selectedMember.fullName} rejected successfully.`
+        setSuccess(msg)
+        toast.success(msg)
       }
 
       setConfirmAction(null)
       setSelectedMember(null)
       await loadMembers()
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.response?.data || err.message || 'Unable to update registration.')
+      const errMsg = err?.response?.data?.message || err?.response?.data || err.message || 'Unable to update registration.'
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setActionLoading(false)
     }

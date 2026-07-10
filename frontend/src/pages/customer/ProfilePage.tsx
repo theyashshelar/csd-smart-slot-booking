@@ -20,6 +20,7 @@ import {
     updateCustomerProfile,
 } from '../../services/api'
 import type { CustomerProfile } from '../../types/api'
+import { toast } from 'react-hot-toast'
 
 export default function ProfilePage() {
     const memberId = Number(localStorage.getItem('memberId'))
@@ -64,6 +65,18 @@ export default function ProfilePage() {
         setError('')
         setSuccess('')
 
+        if (!fullName.trim()) {
+            setError('Full Name is required.')
+            toast.error('Full Name is required.')
+            return
+        }
+
+        if (!mobileNumber.trim()) {
+            setError('Mobile Number is required.')
+            toast.error('Mobile Number is required.')
+            return
+        }
+
         try {
             setSaving(true)
             await updateCustomerProfile(memberId, {
@@ -71,13 +84,13 @@ export default function ProfilePage() {
                 mobileNumber,
             })
             setSuccess('Profile updated successfully.')
+            toast.success('Profile updated successfully.')
             setOpenEdit(false)
             await loadProfile()
         } catch (e: any) {
-            setError(
-                e?.response?.data?.message ||
-                'Unable to update profile.'
-            )
+            const errMsg = e?.response?.data?.message || 'Unable to update profile.'
+            setError(errMsg)
+            toast.error(errMsg)
         } finally {
             setSaving(false)
         }

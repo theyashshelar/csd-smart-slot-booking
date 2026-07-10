@@ -22,9 +22,10 @@ import {
     VisibilityOff,
 } from "@mui/icons-material";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { loginCustomer } from "../../services/auth";
+import { toast } from 'react-hot-toast'
 
 export default function CustomerLoginPage() {
 
@@ -38,11 +39,29 @@ export default function CustomerLoginPage() {
     const [error, setError] = useState<string | null>(null);
 
     const navigate = useNavigate();
+    const phoneRef = useRef<HTMLInputElement>(null);
 
-    const handleSubmit = async () => {
+    useEffect(() => {
+        phoneRef.current?.focus();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!mobileNumber.trim()) {
+            setError("Mobile Number is required.");
+            toast.error("Mobile Number is required.");
+            phoneRef.current?.focus();
+            return;
+        }
+
+        if (!password) {
+            setError("Password is required.");
+            toast.error("Password is required.");
+            return;
+        }
 
         setLoading(true);
-
         setError(null);
 
         try {
@@ -52,15 +71,14 @@ export default function CustomerLoginPage() {
                 password
             );
 
+            toast.success("Logged in successfully!");
             navigate("/customer/dashboard");
 
         } catch (e: any) {
 
-            setError(
-                e?.response?.data?.message ||
-                e?.message ||
-                "Login Failed"
-            );
+            const msg = e?.response?.data?.message || e?.message || "Login Failed";
+            setError(msg);
+            toast.error(msg);
 
         } finally {
 
@@ -167,118 +185,124 @@ export default function CustomerLoginPage() {
 
                         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
 
-                            <Stack spacing={2.5}>
+                            <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
+                                <Stack spacing={2.5}>
 
-                                <Stack
-                                    alignItems="center"
-                                    spacing={1}
-                                    sx={{ textAlign: 'center' }}
-                                >
+                                    <Stack
+                                        alignItems="center"
+                                        spacing={1}
+                                        sx={{ textAlign: 'center' }}
+                                    >
 
-                                    <Box
+                                        <Box
+                                            sx={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: "10px",
+                                                bgcolor: "rgba(46,125,50,0.10)",
+                                                color: "#2E7D32",
+                                                display: "grid",
+                                                placeItems: "center",
+                                            }}
+                                        >
+                                            <PersonRounded
+                                                sx={{ fontSize: 28 }}
+                                            />
+                                        </Box>
+
+                                        <Typography
+                                            variant="h5"
+                                            fontWeight={700}
+                                            color="#111827"
+                                        >
+                                            Customer Login
+                                        </Typography>
+
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            Login using your registered mobile
+                                            number and password.
+                                        </Typography>
+
+                                    </Stack>
+
+                                    {error && (
+
+                                        <Alert severity="error" sx={{ borderRadius: '10px' }}>
+
+                                            {error}
+
+                                        </Alert>
+
+                                    )}
+
+                                    <TextField
+                                        label="Mobile Number"
+                                        fullWidth
+                                        size="small"
+                                        value={mobileNumber}
+                                        onChange={(e) =>
+                                            setMobileNumber(e.target.value)
+                                        }
+                                        inputRef={phoneRef}
+                                        disabled={loading}
+                                        slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                                    />
+
+                                    <TextField
+                                        label="Password"
+                                        type={showPassword ? "text" : "password"}
+                                        fullWidth
+                                        size="small"
+                                        value={password}
+                                        onChange={(e) =>
+                                            setPassword(e.target.value)
+                                        }
+                                        disabled={loading}
+                                        slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        aria-label="toggle password visibility"
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        edge="end"
+                                                    >
+                                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        fullWidth
+                                        variant="contained"
+                                        endIcon={<ArrowForwardRounded />}
+                                        disabled={loading}
                                         sx={{
-                                            width: 48,
-                                            height: 48,
+                                            height: 40,
                                             borderRadius: "10px",
-                                            bgcolor: "rgba(46,125,50,0.10)",
-                                            color: "#2E7D32",
-                                            display: "grid",
-                                            placeItems: "center",
                                         }}
                                     >
-                                        <PersonRounded
-                                            sx={{ fontSize: 28 }}
-                                        />
-                                    </Box>
+                                        {loading ? "Signing In..." : "Sign In"}
+                                    </Button>
 
-                                    <Typography
-                                        variant="h5"
-                                        fontWeight={700}
-                                        color="#111827"
+                                    <Button
+                                        component={RouterLink}
+                                        to="/customer/register"
+                                        variant="text"
+                                        size="small"
+                                        disabled={loading}
+                                        sx={{ textTransform: 'none', fontWeight: 500 }}
                                     >
-                                        Customer Login
-                                    </Typography>
-
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Login using your registered mobile
-                                        number and password.
-                                    </Typography>
+                                        New Member? Create an Account
+                                    </Button>
 
                                 </Stack>
-
-                                {error && (
-
-                                    <Alert severity="error" sx={{ borderRadius: '10px' }}>
-
-                                        {error}
-
-                                    </Alert>
-
-                                )}
-
-                                <TextField
-                                    label="Mobile Number"
-                                    fullWidth
-                                    size="small"
-                                    value={mobileNumber}
-                                    onChange={(e) =>
-                                        setMobileNumber(e.target.value)
-                                    }
-                                    slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
-                                />
-
-                                <TextField
-                                    label="Password"
-                                    type={showPassword ? "text" : "password"}
-                                    fullWidth
-                                    size="small"
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                    slotProps={{ htmlInput: { style: { borderRadius: '10px' } } }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    aria-label="toggle password visibility"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    edge="end"
-                                                >
-                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    endIcon={<ArrowForwardRounded />}
-                                    disabled={loading}
-                                    onClick={handleSubmit}
-                                    sx={{
-                                        height: 40,
-                                        borderRadius: "10px",
-                                    }}
-                                >
-                                    {loading ? "Signing In..." : "Sign In"}
-                                </Button>
-
-                                <Button
-                                    component={RouterLink}
-                                    to="/customer/register"
-                                    variant="text"
-                                    size="small"
-                                    sx={{ textTransform: 'none', fontWeight: 500 }}
-                                >
-                                    New Member? Create an Account
-                                </Button>
-
-                            </Stack>
+                            </Box>
 
                         </CardContent>
 

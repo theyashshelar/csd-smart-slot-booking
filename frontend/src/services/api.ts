@@ -17,6 +17,78 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    let friendlyMessage = ''
+
+    if (!error.response) {
+      friendlyMessage = 'Unable to connect to server.'
+    } else {
+      const status = error.response.status
+      const data = error.response.data
+      
+      const backendMsg = data?.message || data?.error || ''
+
+      if (status === 401) {
+        if (
+          backendMsg.toLowerCase().includes('password') ||
+          backendMsg.toLowerCase().includes('credentials') ||
+          backendMsg.toLowerCase().includes('invalid') ||
+          backendMsg.toLowerCase().includes('auth')
+        ) {
+          friendlyMessage = 'Invalid username or password.'
+        } else {
+          friendlyMessage = 'Session expired. Please login again.'
+        }
+      } else if (status === 403) {
+        if (backendMsg.toLowerCase().includes('pending')) {
+          friendlyMessage = 'Your registration is pending admin approval.'
+        } else if (backendMsg.toLowerCase().includes('reject')) {
+          friendlyMessage = 'Your registration was rejected by administrator.'
+        } else {
+          friendlyMessage = 'Access denied. You do not have permission.'
+        }
+      } else if (status === 400) {
+        if (backendMsg.toLowerCase().includes('already exists') || backendMsg.toLowerCase().includes('duplicate') || backendMsg.toLowerCase().includes('already book')) {
+          friendlyMessage = 'Booking already exists.'
+        } else if (backendMsg.toLowerCase().includes('inactive') || backendMsg.toLowerCase().includes('available')) {
+          friendlyMessage = 'Slot is no longer available.'
+        } else {
+          friendlyMessage = backendMsg || 'Invalid request.'
+        }
+      } else if (status === 404) {
+        friendlyMessage = backendMsg || 'Requested resource not found.'
+      } else if (status >= 500) {
+        friendlyMessage = 'Server error occurred. Please try again later.'
+      } else {
+        friendlyMessage = backendMsg || 'An unexpected error occurred.'
+      }
+    }
+
+    if (friendlyMessage) {
+      error.message = friendlyMessage
+      if (!error.response) {
+        error.response = {
+          status: 0,
+          statusText: 'Network Error',
+          headers: {},
+          config: error.config,
+          data: { message: friendlyMessage, error: friendlyMessage }
+        }
+      } else {
+        if (!error.response.data) {
+          error.response.data = {}
+        }
+        error.response.data.message = friendlyMessage
+        error.response.data.error = friendlyMessage
+      }
+    }
+
+    return Promise.reject(error)
+  }
+)
+
 export default api
 
 

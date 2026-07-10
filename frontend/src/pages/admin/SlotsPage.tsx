@@ -31,6 +31,7 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 
 import {
     changeSlotStatus,
@@ -158,18 +159,45 @@ export default function SlotsPage() {
     };
 
     const handleSave = async () => {
+        if (!form.label.trim()) {
+            setError("Slot Label is required.");
+            toast.error("Slot Label is required.");
+            return;
+        }
+        if (!form.startTime.trim()) {
+            setError("Start Time is required.");
+            toast.error("Start Time is required.");
+            return;
+        }
+        if (!form.endTime.trim()) {
+            setError("End Time is required.");
+            toast.error("End Time is required.");
+            return;
+        }
+        if (!form.capacity || form.capacity <= 0) {
+            setError("Capacity must be greater than 0.");
+            toast.error("Capacity must be greater than 0.");
+            return;
+        }
+
         try {
             setSaving(true);
+            setError("");
 
             if (selectedSlot) {
                 await updateSlot(selectedSlot.id, form);
+                toast.success("Slot updated successfully!");
             } else {
                 await createSlot(form);
+                toast.success("Slot created successfully!");
             }
 
             setOpenDialog(false);
-
             await loadSlots();
+        } catch (e: any) {
+            const errMsg = e?.response?.data?.message || e?.response?.data || "Unable to save slot.";
+            setError(errMsg);
+            toast.error(errMsg);
         } finally {
             setSaving(false);
         }
@@ -178,20 +206,31 @@ export default function SlotsPage() {
     const handleDelete = async () => {
         if (!selectedSlot) return;
 
-        await deleteSlot(selectedSlot.id);
-
-        setDeleteDialog(false);
-
-        loadSlots();
+        try {
+            await deleteSlot(selectedSlot.id);
+            toast.success("Slot deleted successfully!");
+            setDeleteDialog(false);
+            loadSlots();
+        } catch (e: any) {
+            const errMsg = e?.response?.data?.message || e?.response?.data || "Unable to delete slot.";
+            setError(errMsg);
+            toast.error(errMsg);
+        }
     };
 
     const handleToggle = async (slot: Slot) => {
-        await changeSlotStatus(
-            slot.id,
-            !slot.active
-        );
-
-        loadSlots();
+        try {
+            await changeSlotStatus(
+                slot.id,
+                !slot.active
+            );
+            toast.success(`Slot ${!slot.active ? "activated" : "deactivated"} successfully!`);
+            loadSlots();
+        } catch (e: any) {
+            const errMsg = e?.response?.data?.message || e?.response?.data || "Unable to toggle slot status.";
+            setError(errMsg);
+            toast.error(errMsg);
+        }
     };
 
     return (

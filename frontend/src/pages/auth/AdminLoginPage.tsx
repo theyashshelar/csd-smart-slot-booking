@@ -8,9 +8,10 @@ import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import { LockRounded, Visibility, VisibilityOff } from '@mui/icons-material'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginAdmin } from '../../services/auth'
+import { toast } from 'react-hot-toast'
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('')
@@ -19,15 +20,36 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const usernameRef = useRef<HTMLInputElement>(null)
 
-  const handleSubmit = async () => {
+  useEffect(() => {
+    usernameRef.current?.focus()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!username.trim()) {
+      setError('Username is required')
+      toast.error('Username is required')
+      usernameRef.current?.focus()
+      return
+    }
+    if (!password) {
+      setError('Password is required')
+      toast.error('Password is required')
+      return
+    }
+
     setError(null)
     setLoading(true)
     try {
       await loginAdmin(username, password)
+      toast.success('Logged in successfully!')
       navigate('/admin/dashboard')
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Login failed')
+      const msg = e?.response?.data?.message || e?.message || 'Login failed'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -37,38 +59,50 @@ export default function AdminLoginPage() {
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
       <Card sx={{ maxWidth: 480, width: '100%', p: 2 }}>
         <CardContent>
-          <Stack spacing={3} sx={{ alignItems: 'center' }}>
-            <Box sx={{ p: 2, borderRadius: '50%', bgcolor: 'primary.main', color: 'white' }}>
-              <LockRounded />
-            </Box>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>Admin Access</Typography>
-              <Typography color="text.secondary">Enter your credentials to manage the canteen operations.</Typography>
-            </Box>
-            {error && <Typography color="error">{error}</Typography>}
-            <TextField fullWidth label="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-            <TextField
-              fullWidth
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button onClick={handleSubmit} variant="contained" fullWidth disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</Button>
-          </Stack>
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <Stack spacing={3} sx={{ alignItems: 'center' }}>
+              <Box sx={{ p: 2, borderRadius: '50%', bgcolor: 'primary.main', color: 'white' }}>
+                <LockRounded />
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>Admin Access</Typography>
+                <Typography color="text.secondary">Enter your credentials to manage the canteen operations.</Typography>
+              </Box>
+              {error && <Typography color="error" variant="body2">{error}</Typography>}
+              <TextField 
+                fullWidth 
+                label="Username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                inputRef={usernameRef}
+                disabled={loading}
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <Button type="submit" variant="contained" fullWidth disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </Stack>
+          </Box>
         </CardContent>
       </Card>
     </Box>

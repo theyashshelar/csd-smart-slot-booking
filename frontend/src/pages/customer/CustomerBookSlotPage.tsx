@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { toast } from 'react-hot-toast'
 import {
   AccessTimeRounded,
   ArrowForwardRounded,
@@ -217,6 +218,7 @@ export default function CustomerBookSlotPage() {
   const confirmBooking = async () => {
     if (!selectedSlot || !cardType || !bookingDate) {
       setError('Please select booking date, card type, and slot.')
+      toast.error('Please select booking date, card type, and slot.')
       return
     }
 
@@ -231,6 +233,7 @@ export default function CustomerBookSlotPage() {
         bookingDate,
       })
 
+      toast.success('Slot booked successfully!')
       navigate('/booking-success', {
         state: {
           booking: response.data,
@@ -240,7 +243,9 @@ export default function CustomerBookSlotPage() {
         },
       })
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.response?.data || 'Booking failed.')
+      const errMsg = err?.response?.data?.message || err?.response?.data || 'Booking failed.'
+      setError(errMsg)
+      toast.error(errMsg)
       setReviewOpen(false)
     } finally {
       setBooking(false)
