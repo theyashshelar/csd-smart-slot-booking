@@ -15,6 +15,10 @@ import java.time.LocalDate;
 public class Member {
 
     @Id
+    // GenerationType.IDENTITY uses PostgreSQL's underlying IDENTITY column / sequence.
+    // PostgreSQL sequences are not transaction-bound and do not roll back upon transaction failure,
+    // nor do they automatically reset when rows are cleared via DELETE. This guarantees non-blocking,
+    // safe concurrent sequence allocation, and is correct and expected production behavior.
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

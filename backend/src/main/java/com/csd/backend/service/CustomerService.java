@@ -3,6 +3,7 @@ package com.csd.backend.service;
 import com.csd.backend.dto.*;
 import com.csd.backend.entity.*;
 import com.csd.backend.exception.BadRequestException;
+import com.csd.backend.exception.ConflictException;
 import com.csd.backend.repository.AuditLogRepository;
 import com.csd.backend.repository.BookingRepository;
 import com.csd.backend.repository.MemberRepository;
@@ -158,6 +159,24 @@ public class CustomerService {
             return List.of();
         }
 
+        if (cardType == CardType.GROCERY) {
+            boolean groceryAvailable = settingsRepository.findByKeyName("GROCERY_AVAILABLE")
+                    .map(Settings::getSettingValue)
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+            if (!groceryAvailable) {
+                return List.of();
+            }
+        } else if (cardType == CardType.LIQUOR) {
+            boolean liquorAvailable = settingsRepository.findByKeyName("LIQUOR_AVAILABLE")
+                    .map(Settings::getSettingValue)
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+            if (!liquorAvailable) {
+                return List.of();
+            }
+        }
+
         return slotRepository
                 .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType)
                 .stream()
@@ -194,6 +213,10 @@ public class CustomerService {
     @Transactional
     public Booking createBooking(BookingRequest request) {
 
+        // Standard JDBC DATE mapping using java.time.LocalDate.
+        // Storing dates as LocalDate (year-month-day) rather than Timestamp/Instant ensures that the date
+        // remains absolutely identical across different timezones. Timezone drift is avoided because
+        // we completely bypass timezone conversions and store the raw date, which aligns with standard DATE in PostgreSQL.
         LocalDate bookingDate =
                 request.bookingDate() != null
                         ? request.bookingDate()
@@ -211,11 +234,11 @@ public class CustomerService {
             );
         }
 
-        Member member = memberRepository.findById(request.memberId())
+        Member member = memberRepository.findByIdWithLock(request.memberId())
                 .orElseThrow(() ->
                         new BadRequestException("Member not found"));
 
-        Slot slot = slotRepository.findById(request.slotId())
+        Slot slot = slotRepository.findByIdWithLock(request.slotId())
                 .orElseThrow(() ->
                         new BadRequestException("Slot not found"));
 
@@ -227,6 +250,26 @@ public class CustomerService {
             throw new BadRequestException(
                     "Selected slot does not match card type."
             );
+        }
+
+        if (request.cardType() == CardType.GROCERY) {
+            boolean groceryAvailable = settingsRepository.findByKeyName("GROCERY_AVAILABLE")
+                    .map(Settings::getSettingValue)
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+            if (!groceryAvailable) {
+                throw new BadRequestException("Grocery booking is currently disabled by administrator.");
+            }
+        }
+
+        if (request.cardType() == CardType.LIQUOR) {
+            boolean liquorAvailable = settingsRepository.findByKeyName("LIQUOR_AVAILABLE")
+                    .map(Settings::getSettingValue)
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+            if (!liquorAvailable) {
+                throw new BadRequestException("Liquor booking is currently disabled by administrator.");
+            }
         }
 
         if (request.cardType() == CardType.GROCERY
@@ -245,6 +288,22 @@ public class CustomerService {
             throw new BadRequestException(
                     "No Liquor card is registered for this member."
             );
+        }
+
+        int maxBookingPerDay = settingsRepository.findByKeyName("MAX_BOOKING_PER_DAY")
+                .map(Settings::getSettingValue)
+                .map(Integer::parseInt)
+                .orElse(1);
+
+        long totalActiveBookingsOnDate = bookingRepository
+                .findByMemberIdOrderByBookingDateDesc(member.getId())
+                .stream()
+                .filter(b -> b.getBookingDate().equals(bookingDate)
+                        && b.getStatus() != BookingStatus.CANCELLED)
+                .count();
+
+        if (totalActiveBookingsOnDate >= maxBookingPerDay) {
+            throw new BadRequestException("You have reached the maximum allowed bookings (" + maxBookingPerDay + ") for this date.");
         }
 
         boolean alreadyBooked = bookingRepository
@@ -274,7 +333,7 @@ public class CustomerService {
                         .count();
 
         if (bookedForSelectedDate >= slot.getCapacity()) {
-            throw new BadRequestException(
+            throw new ConflictException(
                     "Selected slot is full for this date."
             );
         }
