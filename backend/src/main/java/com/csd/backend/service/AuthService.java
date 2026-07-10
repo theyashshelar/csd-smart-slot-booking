@@ -9,6 +9,7 @@ import com.csd.backend.entity.Member;
 import com.csd.backend.entity.Operator;
 import com.csd.backend.entity.RegistrationStatus;
 import com.csd.backend.entity.Role;
+import com.csd.backend.exception.ForbiddenException;
 import com.csd.backend.exception.UnauthorizedException;
 import com.csd.backend.repository.AdminRepository;
 import com.csd.backend.repository.MemberRepository;
@@ -150,10 +151,16 @@ public class AuthService {
             throw new UnauthorizedException("Invalid mobile number or password");
         }
 
-        if (member.getRegistrationStatus() != RegistrationStatus.APPROVED) {
-            throw new UnauthorizedException(
-                    "Your registration is pending admin approval."
+        if (member.getRegistrationStatus() == RegistrationStatus.PENDING) {
+            throw new ForbiddenException(
+                    "Your registration is awaiting administrator approval. Please log in after your account has been approved."
             );
+        } else if (member.getRegistrationStatus() == RegistrationStatus.REJECTED) {
+            throw new ForbiddenException(
+                    "Your registration has been rejected. Please contact the administrator."
+            );
+        } else if (member.getRegistrationStatus() != RegistrationStatus.APPROVED) {
+            throw new UnauthorizedException("Invalid mobile number or password");
         }
 
         String token = jwtUtil.generateToken(

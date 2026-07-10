@@ -30,39 +30,63 @@ api.interceptors.response.use(
       
       const backendMsg = data?.message || data?.error || ''
 
-      if (status === 401) {
-        if (
-          backendMsg.toLowerCase().includes('password') ||
-          backendMsg.toLowerCase().includes('credentials') ||
-          backendMsg.toLowerCase().includes('invalid') ||
-          backendMsg.toLowerCase().includes('auth')
-        ) {
-          friendlyMessage = 'Invalid username or password.'
+      const url = error.config?.url || ''
+      const isAuthRequest = url.includes('/auth/')
+      const isCustomerLogin = url.includes('/auth/customer/login')
+
+      if (isAuthRequest) {
+        if (isCustomerLogin) {
+          if (status === 401) {
+            friendlyMessage = 'Invalid mobile number or password.'
+          } else if (status === 403) {
+            friendlyMessage = backendMsg
+          } else {
+            friendlyMessage = backendMsg || 'An error occurred during login.'
+          }
         } else {
-          friendlyMessage = 'Session expired. Please login again.'
+          if (status === 401) {
+            friendlyMessage = backendMsg || 'Invalid credentials.'
+          } else if (status === 403) {
+            friendlyMessage = backendMsg || 'Access denied. You do not have permission.'
+          } else {
+            friendlyMessage = backendMsg || 'An error occurred.'
+          }
         }
-      } else if (status === 403) {
-        if (backendMsg.toLowerCase().includes('pending')) {
-          friendlyMessage = 'Your registration is pending admin approval.'
-        } else if (backendMsg.toLowerCase().includes('reject')) {
-          friendlyMessage = 'Your registration was rejected by administrator.'
-        } else {
-          friendlyMessage = 'Access denied. You do not have permission.'
-        }
-      } else if (status === 400) {
-        if (backendMsg.toLowerCase().includes('already exists') || backendMsg.toLowerCase().includes('duplicate') || backendMsg.toLowerCase().includes('already book')) {
-          friendlyMessage = 'Booking already exists.'
-        } else if (backendMsg.toLowerCase().includes('inactive') || backendMsg.toLowerCase().includes('available')) {
-          friendlyMessage = 'Slot is no longer available.'
-        } else {
-          friendlyMessage = backendMsg || 'Invalid request.'
-        }
-      } else if (status === 404) {
-        friendlyMessage = backendMsg || 'Requested resource not found.'
-      } else if (status >= 500) {
-        friendlyMessage = 'Server error occurred. Please try again later.'
       } else {
-        friendlyMessage = backendMsg || 'An unexpected error occurred.'
+        if (status === 401) {
+          if (
+            backendMsg.toLowerCase().includes('password') ||
+            backendMsg.toLowerCase().includes('credentials') ||
+            backendMsg.toLowerCase().includes('invalid') ||
+            backendMsg.toLowerCase().includes('auth')
+          ) {
+            friendlyMessage = 'Invalid username or password.'
+          } else {
+            friendlyMessage = 'Session expired. Please login again.'
+          }
+        } else if (status === 403) {
+          if (backendMsg.toLowerCase().includes('pending')) {
+            friendlyMessage = 'Your registration is pending admin approval.'
+          } else if (backendMsg.toLowerCase().includes('reject')) {
+            friendlyMessage = 'Your registration was rejected by administrator.'
+          } else {
+            friendlyMessage = 'Access denied. You do not have permission.'
+          }
+        } else if (status === 400) {
+          if (backendMsg.toLowerCase().includes('already exists') || backendMsg.toLowerCase().includes('duplicate') || backendMsg.toLowerCase().includes('already book')) {
+            friendlyMessage = 'Booking already exists.'
+          } else if (backendMsg.toLowerCase().includes('inactive') || backendMsg.toLowerCase().includes('available')) {
+            friendlyMessage = 'Slot is no longer available.'
+          } else {
+            friendlyMessage = backendMsg || 'Invalid request.'
+          }
+        } else if (status === 404) {
+          friendlyMessage = backendMsg || 'Requested resource not found.'
+        } else if (status >= 500) {
+          friendlyMessage = 'Server error occurred. Please try again later.'
+        } else {
+          friendlyMessage = backendMsg || 'An unexpected error occurred.'
+        }
       }
     }
 
