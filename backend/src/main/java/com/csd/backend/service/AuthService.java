@@ -77,7 +77,7 @@ public class AuthService {
                 .liquorCardNumber(liquorCardNumber)
                 .role(Role.CUSTOMER)
                 .registrationStatus(RegistrationStatus.PENDING)
-                .registrationDate(java.time.LocalDateTime.now())
+                .registrationDate(java.time.Instant.now())
                 .build();
 
         Member savedMember = memberRepository.save(member);

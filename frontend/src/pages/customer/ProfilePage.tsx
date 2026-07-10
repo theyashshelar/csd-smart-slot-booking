@@ -147,7 +147,7 @@ export default function ProfilePage() {
                             ['Grocery Card', profile.groceryCardNumber || '-'],
                             ['Liquor Card', profile.liquorCardNumber || '-'],
                             ['Registration Status', profile.registrationStatus],
-                            ['Registration Date', profile.registrationDate ? new Date(profile.registrationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not Available'],
+                            ['Registration Date', profile.registrationDate ? new Date(profile.registrationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : 'Not Available'],
                         ].map(([label, value]) => (
                           <Grid size={{ xs: 12, sm: 6 }} key={label}>
                             <Box sx={{ p: 1.2, borderRadius: '10px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>

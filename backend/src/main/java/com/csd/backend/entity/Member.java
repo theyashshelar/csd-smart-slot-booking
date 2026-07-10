@@ -47,6 +47,6 @@ public class Member {
     private Role role = Role.CUSTOMER;
 
     @Column(name = "registration_date")
-    private java.time.LocalDateTime registrationDate;
+    private java.time.Instant registrationDate;
 
 }
