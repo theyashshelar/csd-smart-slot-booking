@@ -293,14 +293,29 @@ public class AdminService {
             throw new IllegalStateException("Mobile Number already exists");
         }
 
+        if (request.groceryCardNumber() != null
+                && !request.groceryCardNumber().isBlank()
+                && memberRepository.existsByGroceryCardNumber(request.groceryCardNumber())) {
+            throw new IllegalStateException("Grocery card number is already registered.");
+        }
+
+        if (request.liquorCardNumber() != null
+                && !request.liquorCardNumber().isBlank()
+                && memberRepository.existsByLiquorCardNumber(request.liquorCardNumber())) {
+            throw new IllegalStateException("Liquor card number is already registered.");
+        }
+
         Member member = new Member();
 
         member.setFullName(request.fullName());
         member.setMobileNumber(request.mobileNumber());
         member.setDateOfBirth(request.dateOfBirth());
         member.setPassword(passwordEncoder.encode(request.password()));
-        member.setGroceryCardNumber(request.groceryCardNumber());
-        member.setLiquorCardNumber(request.liquorCardNumber());
+
+        String groceryCardNumber = (request.groceryCardNumber() == null || request.groceryCardNumber().isBlank()) ? null : request.groceryCardNumber();
+        String liquorCardNumber = (request.liquorCardNumber() == null || request.liquorCardNumber().isBlank()) ? null : request.liquorCardNumber();
+        member.setGroceryCardNumber(groceryCardNumber);
+        member.setLiquorCardNumber(liquorCardNumber);
 
         member.setRole(Role.CUSTOMER);
         member.setRegistrationStatus(RegistrationStatus.APPROVED);
@@ -327,6 +342,20 @@ public class AdminService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("Member not found"));
 
+        if (request.groceryCardNumber() != null
+                && !request.groceryCardNumber().isBlank()
+                && !request.groceryCardNumber().equals(member.getGroceryCardNumber())
+                && memberRepository.existsByGroceryCardNumber(request.groceryCardNumber())) {
+            throw new IllegalStateException("Grocery card number is already registered.");
+        }
+
+        if (request.liquorCardNumber() != null
+                && !request.liquorCardNumber().isBlank()
+                && !request.liquorCardNumber().equals(member.getLiquorCardNumber())
+                && memberRepository.existsByLiquorCardNumber(request.liquorCardNumber())) {
+            throw new IllegalStateException("Liquor card number is already registered.");
+        }
+
         member.setFullName(request.fullName());
         member.setMobileNumber(request.mobileNumber());
         member.setDateOfBirth(request.dateOfBirth());
@@ -335,8 +364,10 @@ public class AdminService {
             member.setPassword(passwordEncoder.encode(request.password()));
         }
 
-        member.setGroceryCardNumber(request.groceryCardNumber());
-        member.setLiquorCardNumber(request.liquorCardNumber());
+        String groceryCardNumber = (request.groceryCardNumber() == null || request.groceryCardNumber().isBlank()) ? null : request.groceryCardNumber();
+        String liquorCardNumber = (request.liquorCardNumber() == null || request.liquorCardNumber().isBlank()) ? null : request.liquorCardNumber();
+        member.setGroceryCardNumber(groceryCardNumber);
+        member.setLiquorCardNumber(liquorCardNumber);
 
         Member updatedMember = memberRepository.save(member);
 

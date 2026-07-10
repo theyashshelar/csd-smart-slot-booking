@@ -178,14 +178,20 @@ public class OperatorService {
 
         booking.setStatus(BookingStatus.CANCELLED);
 
-        Slot slot = booking.getSlot();
+        Booking savedBooking = bookingRepository.save(booking);
 
-        if (slot.getBookedCount() > 0) {
-            slot.setBookedCount(slot.getBookedCount() - 1);
+        Slot slot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+
+        if (booking.getBookingDate().equals(java.time.LocalDate.now())) {
+            long currentBookedCount = bookingRepository
+                    .findBySlotIdAndBookingDate(slot.getId(), booking.getBookingDate())
+                    .stream()
+                    .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
+                    .count();
+            slot.setBookedCount((int) currentBookedCount);
             slotRepository.save(slot);
         }
-
-        Booking savedBooking = bookingRepository.save(booking);
 
         auditLogRepository.save(
                 log(

@@ -30,6 +30,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiError> handleConflict(
+            ConflictException ex,
+            HttpServletRequest request) {
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiError> handleBadRequest(
             BadRequestException ex,
