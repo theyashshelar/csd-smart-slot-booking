@@ -22,6 +22,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    /*
+     * IMPORTANT:
+     * This CORS configuration is required for the Vercel frontend.
+     *
+     * Do NOT remove or replace this bean during future refactoring.
+     * Spring Security uses .cors(Customizer.withDefaults()) together
+     * with this bean to allow cross-origin requests.
+     */
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
