@@ -17,6 +17,8 @@ import {
   TableRow,
   Typography,
   Skeleton,
+  Tabs,
+  Tab,
 } from '@mui/material'
 
 import {
@@ -29,6 +31,8 @@ import {
   TrendingUp as TrendingUpIcon,
   ArrowForward as ArrowForwardIcon,
   Inbox as InboxIcon,
+  Cancel as CancelIcon,
+  CalendarMonth as CalendarMonthIcon,
 } from '@mui/icons-material'
 
 import {
@@ -37,7 +41,8 @@ import {
   checkIn,
   checkOut,
   cancelBooking,
-  getBookingByToken
+  getBookingByToken,
+  getReport,
 } from '../../services/api'
 
 import type {
@@ -55,34 +60,75 @@ export default function OperatorDashboardPage() {
 
   const [queue, setQueue] = useState<OperatorBooking[]>([])
   const [loading, setLoading] = useState(true)
-  const [openScanner, setOpenScanner] = useState(false);
+  const [openScanner, setOpenScanner] = useState(false)
   const [search, setSearch] = useState('')
   const [searchResult, setSearchResult] = useState<OperatorSearchResponse | null>(null)
   const [error, setError] = useState('')
+  const [searchError, setSearchError] = useState('')
+  const [activeTab, setActiveTab] = useState<'today' | 'upcoming'>('today')
 
-  useEffect(() => {
-    void loadQueue()
-  }, [])
+  const [stats, setStats] = useState({
+    total: 0,
+    waiting: 0,
+    checkedIn: 0,
+    completed: 0,
+    cancelled: 0,
+  })
 
-  const loadQueue = async () => {
-    setLoading(true)
+  const getTodayString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+  };
+
+  const loadQueueAndStats = async (showSkeleton = false) => {
+    if (showSkeleton) {
+      setLoading(true)
+    }
+    setError('')
     try {
-      const res = await getQueue()
-      setQueue(res.data)
+      const [queueRes, statsRes] = await Promise.all([
+        getQueue(),
+        getReport('today')
+      ])
+      setQueue(queueRes.data)
+      
+      const s = statsRes.data
+      setStats({
+        total: s.totalBookings || 0,
+        waiting: Math.max((s.totalBookings || 0) - (s.checkedIn || 0) - (s.checkedOut || 0) - (s.cancelled || 0), 0),
+        checkedIn: s.checkedIn || 0,
+        completed: s.checkedOut || 0,
+        cancelled: s.cancelled || 0,
+      })
     } catch (e: any) {
       setError(
           e?.response?.data?.message ||
-          'Unable to load queue.'
+          'Unable to load queue and statistics.'
       )
     } finally {
-      setLoading(false)
+      if (showSkeleton) {
+        setLoading(false)
+      }
     }
   }
+
+  useEffect(() => {
+    void loadQueueAndStats(true)
+
+    const interval = setInterval(() => {
+      void loadQueueAndStats(false)
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSearch = async () => {
     if (!search.trim()) return
 
-    setError('')
+    setSearchError('')
     setSearchResult(null)
 
     try {
@@ -91,19 +137,20 @@ export default function OperatorDashboardPage() {
         mobileNumber: search,
         cardNumber: search,
       })
-      setSearchResult(response.data)
+      if (response.data) {
+        setSearchResult(response.data)
+      } else {
+        setSearchError('No booking found.')
+      }
     } catch (e: any) {
-      setError(
-          e?.response?.data?.message ||
-          'Booking not found.'
-      )
+      setSearchError('No booking found.')
     }
   }
 
   const handleCheckIn = async (bookingId: number) => {
     try {
       await checkIn(bookingId)
-      await loadQueue()
+      await loadQueueAndStats(false)
       if (searchResult?.bookingId === bookingId) {
         await handleSearch()
       }
@@ -118,7 +165,7 @@ export default function OperatorDashboardPage() {
   const handleCheckOut = async (bookingId: number) => {
     try {
       await checkOut(bookingId)
-      await loadQueue()
+      await loadQueueAndStats(false)
       if (searchResult?.bookingId === bookingId) {
         await handleSearch()
       }
@@ -133,7 +180,7 @@ export default function OperatorDashboardPage() {
   const handleCancel = async (bookingId: number) => {
     try {
       await cancelBooking(bookingId)
-      await loadQueue()
+      await loadQueueAndStats(false)
       if (searchResult?.bookingId === bookingId) {
         await handleSearch()
       }
@@ -145,31 +192,49 @@ export default function OperatorDashboardPage() {
     }
   }
 
-  // Sort queue by:
-  // 1. Slot Start Time
-  // 2. Token Number
-  const sortedQueue = [...queue].sort((a, b) => {
-    const startTimeA = a.slot?.startTime || '';
-    const startTimeB = b.slot?.startTime || '';
-    if (startTimeA !== startTimeB) {
-      return startTimeA.localeCompare(startTimeB);
-    }
-    const tokenA = a.token || '';
-    const tokenB = b.token || '';
-    return tokenA.localeCompare(tokenB);
-  });
+  const todayStr = getTodayString()
 
-  // Calculate stats
-  const totalToday = queue.length
-  const waitingCount = queue.filter(b => b.status === 'BOOKED').length
-  const checkedInCount = queue.filter(b => b.status === 'CHECKED_IN').length
-  const completedCount = queue.filter(b => b.status === 'CHECKED_OUT').length
+  // FEATURE 1 — Today's Queue
+  const sortedTodayQueue = [...queue]
+    .filter(b => b.bookingDate === todayStr)
+    .sort((a, b) => {
+      const startTimeA = a.slot?.startTime || '';
+      const startTimeB = b.slot?.startTime || '';
+      if (startTimeA !== startTimeB) {
+        return startTimeA.localeCompare(startTimeB);
+      }
+      const tokenA = a.token || '';
+      const tokenB = b.token || '';
+      return tokenA.localeCompare(tokenB);
+    });
+
+  // FEATURE 2 — Upcoming Bookings
+  const sortedUpcomingQueue = [...queue]
+    .filter(b => b.bookingDate > todayStr)
+    .sort((a, b) => {
+      // 1. Booking Date
+      const dateA = a.bookingDate || '';
+      const dateB = b.bookingDate || '';
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      // 2. Slot start time
+      const startTimeA = a.slot?.startTime || '';
+      const startTimeB = b.slot?.startTime || '';
+      if (startTimeA !== startTimeB) {
+        return startTimeA.localeCompare(startTimeB);
+      }
+      // 3. Token number
+      const tokenA = a.token || '';
+      const tokenB = b.token || '';
+      return tokenA.localeCompare(tokenB);
+    });
 
   // Now serving logic:
-  // Earliest BOOKED booking in sorted list
-  const bookedBookings = sortedQueue.filter(b => b.status === 'BOOKED');
-  const currentServing = bookedBookings[0] || null;
-  const nextTokens = bookedBookings.slice(1, 4);
+  // Earliest BOOKED booking in sorted today's queue list
+  const bookedTodayBookings = sortedTodayQueue.filter(b => b.status === 'BOOKED');
+  const currentServing = bookedTodayBookings[0] || null;
+  const nextTokens = bookedTodayBookings.slice(1, 4);
 
   const getStatusChipStyles = (status: string) => {
     switch (status) {
@@ -178,29 +243,60 @@ export default function OperatorDashboardPage() {
           bgcolor: '#FEF3C7',
           color: '#B45309',
           border: '1px solid #FCD34D',
+          borderRadius: '9999px',
         };
       case 'CHECKED_IN':
         return {
           bgcolor: '#D1FAE5',
           color: '#047857',
           border: '1px solid #6EE7B7',
+          borderRadius: '9999px',
         };
       case 'CHECKED_OUT':
         return {
           bgcolor: '#DBEAFE',
           color: '#1D4ED8',
           border: '1px solid #93C5FD',
+          borderRadius: '9999px',
         };
       case 'CANCELLED':
         return {
           bgcolor: '#FEE2E2',
           color: '#B91C1C',
           border: '1px solid #FCA5A5',
+          borderRadius: '9999px',
         };
       default:
-        return {};
+        return {
+          borderRadius: '9999px',
+        };
     }
   };
+
+  const renderEmptyState = (message: string, description: string) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6, px: 2 }}>
+      <Box sx={{
+        p: 2,
+        borderRadius: '50%',
+        bgcolor: '#F3F4F6',
+        color: '#9CA3AF',
+        mb: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <InboxIcon sx={{ fontSize: 48 }} />
+      </Box>
+      <Typography variant="h6" color="#111827" fontWeight={800} align="center">
+        {message}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 0.5, maxWidth: 360 }}>
+        {description}
+      </Typography>
+    </Box>
+  )
+
+  const currentList = activeTab === 'today' ? sortedTodayQueue : sortedUpcomingQueue;
 
   if (loading) {
     return (
@@ -215,16 +311,16 @@ export default function OperatorDashboardPage() {
         </Box>
 
         {/* Summary Cards Skeleton */}
-        <Grid container spacing={3}>
-          {[1, 2, 3, 4].map((i) => (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
+        <Grid container spacing={2.5}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={i}>
               <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-                <CardContent sx={{ p: 3 }}>
+                <CardContent sx={{ p: 2.5 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Skeleton variant="circular" width={48} height={48} />
+                    <Skeleton variant="circular" width={44} height={44} />
                     <Box sx={{ flex: 1 }}>
-                      <Skeleton variant="text" width="60%" height={20} />
-                      <Skeleton variant="text" width="40%" height={32} />
+                      <Skeleton variant="text" width="60%" height={18} />
+                      <Skeleton variant="text" width="40%" height={28} />
                     </Box>
                   </Stack>
                 </CardContent>
@@ -279,7 +375,7 @@ export default function OperatorDashboardPage() {
           </Box>
           <Button
             variant="outlined"
-            onClick={loadQueue}
+            onClick={() => loadQueueAndStats(true)}
             sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
           >
             Refresh Queue
@@ -292,78 +388,106 @@ export default function OperatorDashboardPage() {
           </Alert>
         )}
 
-        {/* Summary Metric Cards */}
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 3 }}>
+        {/* FEATURE 3 — Live Statistics */}
+        <Grid container spacing={2.5}>
+          {/* Card 1: Today's Bookings */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
+              <CardContent sx={{ p: 2.5 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: 'rgba(25, 118, 210, 0.08)', color: 'primary.main', display: 'flex' }}>
-                    <PeopleIcon sx={{ fontSize: 24 }} />
+                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.08)', color: '#2563EB', display: 'flex' }}>
+                    <PeopleIcon sx={{ fontSize: 22 }} />
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
                       Today's Bookings
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.5 }}>
-                      {totalToday}
+                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
+                      {stats.total}
                     </Typography>
                   </Box>
                 </Stack>
               </CardContent>
             </Card>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 3 }}>
+
+          {/* Card 2: Waiting */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
+              <CardContent sx={{ p: 2.5 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: 'rgba(237, 108, 2, 0.08)', color: 'warning.main', display: 'flex' }}>
-                    <HourglassEmptyIcon sx={{ fontSize: 24 }} />
+                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.08)', color: '#D97706', display: 'flex' }}>
+                    <HourglassEmptyIcon sx={{ fontSize: 22 }} />
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                      Waiting (Booked)
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Waiting
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.5 }}>
-                      {waitingCount}
+                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
+                      {stats.waiting}
                     </Typography>
                   </Box>
                 </Stack>
               </CardContent>
             </Card>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 3 }}>
+
+          {/* Card 3: Checked In */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
+              <CardContent sx={{ p: 2.5 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: 'rgba(46, 125, 50, 0.08)', color: 'success.main', display: 'flex' }}>
-                    <CheckCircleIcon sx={{ fontSize: 24 }} />
+                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.08)', color: '#059669', display: 'flex' }}>
+                    <CheckCircleIcon sx={{ fontSize: 22 }} />
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
                       Checked In
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.5 }}>
-                      {checkedInCount}
+                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
+                      {stats.checkedIn}
                     </Typography>
                   </Box>
                 </Stack>
               </CardContent>
             </Card>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 3 }}>
+
+          {/* Card 4: Completed */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
+              <CardContent sx={{ p: 2.5 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: 'rgba(2, 136, 209, 0.08)', color: 'info.main', display: 'flex' }}>
-                    <ExitToAppIcon sx={{ fontSize: 24 }} />
+                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(79, 70, 229, 0.08)', color: '#4F46E5', display: 'flex' }}>
+                    <ExitToAppIcon sx={{ fontSize: 22 }} />
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
                       Completed
                     </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.5 }}>
-                      {completedCount}
+                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
+                      {stats.completed}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Card 5: Cancelled */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(220, 38, 38, 0.08)', color: '#DC2626', display: 'flex' }}>
+                    <CancelIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Cancelled
+                    </Typography>
+                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
+                      {stats.cancelled}
                     </Typography>
                   </Box>
                 </Stack>
@@ -372,7 +496,7 @@ export default function OperatorDashboardPage() {
           </Grid>
         </Grid>
 
-        {/* Now Serving Highlighted Card */}
+        {/* FEATURE 4 & 5 — Now Serving & Up Next */}
         <Card sx={{
           borderRadius: '16px',
           border: '1px solid #D1FAE5',
@@ -397,7 +521,7 @@ export default function OperatorDashboardPage() {
           <Grid container spacing={3} alignItems="center" sx={{ position: 'relative', zIndex: 1 }}>
             {/* Now Serving Segment */}
             <Grid size={{ xs: 12, md: 7 }}>
-              <Stack spacing={1.5}>
+              <Stack spacing={2.5}>
                 <Box>
                   <Box sx={{ px: 2, py: 0.5, borderRadius: '20px', bgcolor: '#D1FAE5', color: '#065F46', fontWeight: 800, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 0.5, letterSpacing: '0.05em' }}>
                     <TrendingUpIcon sx={{ fontSize: 13 }} /> NOW SERVING
@@ -409,21 +533,52 @@ export default function OperatorDashboardPage() {
                     <Typography variant="h2" fontWeight={900} color="#065F46" sx={{ letterSpacing: '-0.03em', lineHeight: 1 }}>
                       {currentServing.token}
                     </Typography>
-                    <Box>
-                      <Typography variant="h5" fontWeight={800} color="#111827">
-                        {currentServing.member?.fullName || 'Unknown Customer'}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Time Slot: <strong style={{ color: '#111827' }}>{currentServing.slot?.label || 'N/A'}</strong> | Card Type: <strong style={{ color: '#111827' }}>{currentServing.slot?.cardType || 'N/A'}</strong>
-                      </Typography>
+                    
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                      <Box>
+                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                          Member Name
+                        </Typography>
+                        <Typography variant="body1" fontWeight={800} color="#111827">
+                          {currentServing.member?.fullName || 'Unknown Customer'}
+                        </Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                          Slot
+                        </Typography>
+                        <Typography variant="body1" fontWeight={800} color="#111827">
+                          {currentServing.slot?.label || 'N/A'}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                          Card Type
+                        </Typography>
+                        <Typography variant="body1" fontWeight={800} color="#111827">
+                          {currentServing.slot?.cardType || 'N/A'}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                          Booking Time
+                        </Typography>
+                        <Typography variant="body1" fontWeight={800} color="#111827">
+                          {currentServing.slot?.startTime ? `${currentServing.slot.startTime} - ${currentServing.slot.endTime}` : 'N/A'}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box sx={{ pt: 0.5 }}>
+
+                    <Box sx={{ pt: 1 }}>
                       <Button
                         variant="contained"
                         color="success"
-                        size="medium"
+                        size="large"
                         startIcon={<CheckCircleIcon />}
-                        sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, px: 3, py: 1, boxShadow: '0 4px 6px -1px rgba(74, 222, 128, 0.2)' }}
+                        sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, px: 4, py: 1.5, fontSize: '1rem', boxShadow: '0 4px 6px -1px rgba(74, 222, 128, 0.2)' }}
                         onClick={() => handleCheckIn(currentServing.id)}
                       >
                         Check In Customer
@@ -476,7 +631,7 @@ export default function OperatorDashboardPage() {
                           </Typography>
                         </Box>
                         <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">
+                          <Typography variant="caption" color="#111827" fontWeight={700} display="block">
                             {t.slot?.label}
                           </Typography>
                           <Chip
@@ -500,18 +655,28 @@ export default function OperatorDashboardPage() {
           </Grid>
         </Card>
 
-        {/* Live Queue Table Card */}
+        {/* Live Queue Table Card with Tabs */}
         <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
           <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" fontWeight={800} color="#111827">
-                Today's Live Queue
-              </Typography>
-              <Chip
-                label={`${sortedQueue.length} Active`}
-                size="small"
-                sx={{ bgcolor: '#F3F4F6', color: '#1F2937', fontWeight: 700, borderRadius: '6px' }}
-              />
+            
+            {/* FEATURE 1 & 2 Tabs */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs 
+                value={activeTab} 
+                onChange={(_, val) => setActiveTab(val)}
+                textColor="primary"
+                indicatorColor="primary"
+                sx={{
+                  '& .MuiTab-root': {
+                    textTransform: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.95rem',
+                  }
+                }}
+              >
+                <Tab value="today" label={`Today's Queue (${sortedTodayQueue.length})`} />
+                <Tab value="upcoming" label={`Upcoming Bookings (${sortedUpcomingQueue.length})`} />
+              </Tabs>
             </Box>
 
             <Box sx={{ border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
@@ -520,29 +685,34 @@ export default function OperatorDashboardPage() {
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Token</TableCell>
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '25%' }}>Customer</TableCell>
+                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: activeTab === 'upcoming' ? '20%' : '25%' }}>Customer</TableCell>
+                      {activeTab === 'upcoming' && (
+                        <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Booking Date</TableCell>
+                      )}
                       <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '25%' }}>Time Slot & Type</TableCell>
                       <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Status</TableCell>
                       <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '20%', textAlign: 'center' }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {sortedQueue.length === 0 ? (
+                    {currentList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                            <InboxIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.4, mb: 1.5 }} />
-                            <Typography variant="h6" color="text.primary" fontWeight={800}>
-                              No bookings for today.
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 320 }}>
-                              There are currently no active bookings in the queue for today.
-                            </Typography>
-                          </Box>
+                        <TableCell colSpan={activeTab === 'upcoming' ? 6 : 5} align="center" sx={{ py: 8 }}>
+                          {activeTab === 'today' ? (
+                            renderEmptyState(
+                              "No bookings scheduled for today.",
+                              "There are currently no active bookings in the queue for today."
+                            )
+                          ) : (
+                            renderEmptyState(
+                              "No upcoming bookings scheduled.",
+                              "There are no future bookings registered in the system."
+                            )
+                          )}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedQueue.map((booking) => (
+                      currentList.map((booking) => (
                         <TableRow key={booking.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                           <TableCell sx={{ fontWeight: 800, color: '#111827', fontSize: '1.05rem' }}>
                             {booking.token}
@@ -557,6 +727,16 @@ export default function OperatorDashboardPage() {
                               </Typography>
                             </Box>
                           </TableCell>
+                          {activeTab === 'upcoming' && (
+                            <TableCell>
+                              <Chip
+                                icon={<CalendarMonthIcon sx={{ fontSize: '0.9rem !important' }} />}
+                                label={booking.bookingDate}
+                                size="small"
+                                sx={{ bgcolor: '#F3F4F6', color: '#1F2937', fontWeight: 700, borderRadius: '8px' }}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <Box>
                               <Typography variant="body2" fontWeight={600} color="#374151">
@@ -573,7 +753,7 @@ export default function OperatorDashboardPage() {
                               size="small"
                               sx={{
                                 ...getStatusChipStyles(booking.status),
-                                borderRadius: '8px',
+                                borderRadius: '9999px',
                                 fontSize: '0.72rem',
                                 fontWeight: 700,
                                 height: 22,
@@ -587,7 +767,7 @@ export default function OperatorDashboardPage() {
                                 size="small"
                                 variant="contained"
                                 color="success"
-                                disabled={booking.status !== 'BOOKED'}
+                                disabled={booking.status !== 'BOOKED' || activeTab === 'upcoming'}
                                 onClick={() => handleCheckIn(booking.id)}
                                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5 }}
                               >
@@ -597,7 +777,7 @@ export default function OperatorDashboardPage() {
                                 size="small"
                                 variant="outlined"
                                 color="primary"
-                                disabled={booking.status !== 'CHECKED_IN'}
+                                disabled={booking.status !== 'CHECKED_IN' || activeTab === 'upcoming'}
                                 onClick={() => handleCheckOut(booking.id)}
                                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5 }}
                               >
@@ -628,7 +808,7 @@ export default function OperatorDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Search Booking Section */}
+        {/* FEATURE 6 — Search Booking Section */}
         <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight={800} color="#111827" sx={{ mb: 2 }}>
@@ -642,7 +822,13 @@ export default function OperatorDashboardPage() {
                 label="Token / Mobile / Card Number"
                 placeholder="Enter token, mobile number or grocery/liquor card number..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  if (searchError) setSearchError('')
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleSearch()
+                }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: '12px',
@@ -712,7 +898,7 @@ export default function OperatorDashboardPage() {
                       size="small"
                       sx={{
                         ...getStatusChipStyles(searchResult.status),
-                        borderRadius: '8px',
+                        borderRadius: '9999px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
                         alignSelf: 'flex-start',
@@ -756,6 +942,20 @@ export default function OperatorDashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        {searchError && (
+          <Card sx={{ borderRadius: '16px', border: '1.5px dashed #EF4444', p: 3, textAlign: 'center', bgcolor: '#FEF2F2' }}>
+            <Box sx={{ color: '#EF4444', mb: 1, display: 'flex', justifyContent: 'center' }}>
+              <CancelIcon sx={{ fontSize: 36 }} />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={800} color="#991B1B">
+              No Booking Found
+            </Typography>
+            <Typography variant="body2" color="#B91C1C" sx={{ mt: 0.5 }}>
+              We couldn't find any booking matching your query. Please verify the credentials or try searching again.
+            </Typography>
+          </Card>
+        )}
       </Stack>
 
       <Dialog
@@ -791,9 +991,9 @@ export default function OperatorDashboardPage() {
                   bookingType: booking.slot.cardType,
                 })
 
-                await loadQueue()
+                await loadQueueAndStats(false)
               } catch {
-                setError('Booking not found.')
+                setSearchError('No booking found.')
               }
             }}
           />
