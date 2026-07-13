@@ -96,6 +96,14 @@ export default function CustomerRegisterPage() {
       return
     }
 
+    if (groceryCardNumber.trim() !== '' && liquorCardNumber.trim() !== '') {
+      if (groceryCardNumber.trim().toLowerCase() === liquorCardNumber.trim().toLowerCase()) {
+        setError('Grocery Card Number and Liquor Card Number cannot be the same.')
+        toast.error('Grocery Card Number and Liquor Card Number cannot be the same.')
+        return
+      }
+    }
+
     try {
       setLoading(true)
 

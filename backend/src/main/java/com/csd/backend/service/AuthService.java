@@ -46,6 +46,15 @@ public class AuthService {
 
         if (request.getGroceryCardNumber() != null
                 && !request.getGroceryCardNumber().isBlank()
+                && request.getLiquorCardNumber() != null
+                && !request.getLiquorCardNumber().isBlank()
+                && request.getGroceryCardNumber().trim().equalsIgnoreCase(request.getLiquorCardNumber().trim())) {
+
+            throw new IllegalArgumentException("Grocery Card Number and Liquor Card Number cannot be the same.");
+        }
+
+        if (request.getGroceryCardNumber() != null
+                && !request.getGroceryCardNumber().isBlank()
                 && memberRepository.existsByGroceryCardNumber(request.getGroceryCardNumber())) {
 
             throw new IllegalArgumentException("Grocery card number is already registered.");
