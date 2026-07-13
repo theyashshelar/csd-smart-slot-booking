@@ -20,6 +20,20 @@ type AvailabilitySectionProps = {
 
 const getRemaining = (slot: Slot) => Math.max(slot.capacity - slot.bookedCount, 0)
 
+function getDisplayDate(dateObj: Date) {
+  const weekdayStr = dateObj.toLocaleDateString('en-GB', { weekday: 'long' })
+  const dayStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric' })
+  const monthStr = dateObj.toLocaleDateString('en-GB', { month: 'long' })
+  const yearStr = dateObj.toLocaleDateString('en-GB', { year: 'numeric' })
+  const formattedDate = `${weekdayStr}, ${dayStr} ${monthStr} ${yearStr}`
+
+  const isToday = dateObj.toDateString() === new Date().toDateString()
+  if (isToday) {
+    return `Today • ${formattedDate}`
+  }
+  return formattedDate
+}
+
 export default function AvailabilitySection({ data, totals, loading }: AvailabilitySectionProps) {
   const slots = data?.availableSlots ?? []
 
@@ -34,12 +48,15 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           sx={{ mb: 4 }}
         >
           <Stack spacing={1.2} sx={{ maxWidth: 700 }}>
-            <Chip label="Live backend data" color="success" variant="outlined" sx={{ width: 'fit-content' }} />
+            <Chip label="Live Availability" color="success" variant="outlined" sx={{ width: 'fit-content' }} />
             <Typography variant="h3" sx={{ color: '#102319', fontWeight: 850 }}>
-              Live Slot Availability
+              Available Slots
+            </Typography>
+            <Typography variant="h6" sx={{ color: '#2E7D32', fontWeight: 700 }}>
+              {getDisplayDate(new Date())}
             </Typography>
             <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
-              Guests can view availability, but booking starts only after customer login.
+              Guests can view availability before logging in.
             </Typography>
           </Stack>
 
@@ -88,7 +105,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
                         <Chip
                           size="small"
                           color={full ? 'error' : remaining <= 5 ? 'warning' : 'success'}
-                          label={full ? 'Full' : 'Open'}
+                          label={full ? 'Full' : 'Available'}
                         />
                       </Stack>
 

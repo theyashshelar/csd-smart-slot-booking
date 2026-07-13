@@ -166,7 +166,7 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#2E7D32' }} />
                     <Typography fontWeight={850}>Live availability</Typography>
                   </Stack>
-                  <Chip label="Backend synced" size="small" color="success" variant="outlined" />
+                  <Chip label="Live Updates" size="small" color="success" variant="outlined" />
                 </Box>
 
                 <Stack spacing={3} sx={{ p: { xs: 2.5, md: 3.5 } }}>
