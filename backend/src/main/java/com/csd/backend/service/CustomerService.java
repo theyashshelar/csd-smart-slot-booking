@@ -169,10 +169,10 @@ public class CustomerService {
                     try {
                         return Integer.parseInt(val);
                     } catch (Exception e) {
-                        return 3;
+                        return 7;
                     }
                 })
-                .orElse(3);
+                .orElse(7);
 
         long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(todayKolkata, effectiveDate);
         if (daysBetween < 0 || daysBetween > bookingWindowDays) {
@@ -208,12 +208,16 @@ public class CustomerService {
                 .stream()
                 .filter(slot -> {
                     if (effectiveDate.equals(todayKolkata)) {
-                        // TODAY only: Hide slots that have already ended
+                        // TODAY only: Hide slots that have already ended or start within the next 30 minutes
                         try {
+                            LocalTime startTime = LocalTime.parse(slot.getStartTime());
                             LocalTime endTime = LocalTime.parse(slot.getEndTime());
-                            return endTime.isAfter(nowKolkata);
+                            LocalTime limitTime = nowKolkata.plusMinutes(30);
+                            if (startTime.isBefore(limitTime) || !endTime.isAfter(nowKolkata)) {
+                                return false;
+                            }
                         } catch (Exception e) {
-                            return true;
+                            return false;
                         }
                     }
                     // TOMORROW and future dates: Show all active slots
@@ -268,10 +272,10 @@ public class CustomerService {
                     try {
                         return Integer.parseInt(val);
                     } catch (Exception e) {
-                        return 3;
+                        return 7;
                     }
                 })
-                .orElse(3);
+                .orElse(7);
 
         long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(todayKolkata, bookingDate);
         if (daysBetween < 0 || daysBetween > bookingWindowDays) {
@@ -296,11 +300,16 @@ public class CustomerService {
             throw new BadRequestException("This time slot is inactive and cannot be booked.");
         }
 
-        // TODAY only: Validate slot expiration (end time)
+        // TODAY only: Validate slot expiration (start time and end time)
         if (bookingDate.equals(todayKolkata)) {
             LocalTime nowKolkata = LocalTime.now(kolkataZone);
             try {
+                LocalTime startTime = LocalTime.parse(slot.getStartTime());
                 LocalTime endTime = LocalTime.parse(slot.getEndTime());
+                LocalTime limitTime = nowKolkata.plusMinutes(30);
+                if (startTime.isBefore(limitTime)) {
+                    throw new BadRequestException("This time slot has already expired or is too close to start.");
+                }
                 if (!endTime.isAfter(nowKolkata)) {
                     throw new BadRequestException("This time slot has already expired.");
                 }
