@@ -45,7 +45,7 @@ type CardType = 'GROCERY' | 'LIQUOR'
 
 const steps = ['Member', 'Date', 'Card', 'Slot', 'Review']
 
-const today = new Date().toISOString().slice(0, 10)
+const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
 function getRemaining(slot: Slot) {
   return Math.max(slot.capacity - slot.bookedCount, 0)
@@ -74,6 +74,10 @@ export default function CustomerBookSlotPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [error, setError] = useState('')
   const [settings, setSettings] = useState<Record<string, string>>({})
+
+  const bookingWindowDays = settings.bookingWindow ? parseInt(settings.bookingWindow, 10) : 7
+  const maxDateObj = new Date(new Date(today + 'T00:00:00').getTime() + bookingWindowDays * 24 * 60 * 60 * 1000)
+  const maxDate = maxDateObj.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
   useEffect(() => {
     let mounted = true
@@ -339,7 +343,7 @@ export default function CustomerBookSlotPage() {
                       label="Booking Date"
                       value={bookingDate}
                       onChange={(event) => setBookingDate(event.target.value)}
-                      slotProps={{ htmlInput: { min: today, style: { borderRadius: '10px' } } }}
+                      slotProps={{ htmlInput: { min: today, max: maxDate, style: { borderRadius: '10px' } } }}
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>

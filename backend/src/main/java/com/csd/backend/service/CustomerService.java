@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -144,18 +145,39 @@ public class CustomerService {
 
     //Available Slots
     public List<Slot> getAvailableSlots(CardType cardType) {
-
-        return getAvailableSlots(cardType, LocalDate.now());
+        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
+        return getAvailableSlots(cardType, LocalDate.now(kolkataZone));
     }
 
     public List<Slot> getAvailableSlots(
             CardType cardType,
             LocalDate bookingDate) {
 
+        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
+        LocalDate todayKolkata = LocalDate.now(kolkataZone);
+
         LocalDate effectiveDate =
                 bookingDate != null
                         ? bookingDate
-                        : LocalDate.now();
+                        : todayKolkata;
+
+        // Check booking window
+        int bookingWindowDays = settingsRepository.findByKeyName("bookingWindow")
+                .or(() -> settingsRepository.findByKeyName("BOOKING_WINDOW_DAYS"))
+                .map(Settings::getSettingValue)
+                .map(val -> {
+                    try {
+                        return Integer.parseInt(val);
+                    } catch (Exception e) {
+                        return 3;
+                    }
+                })
+                .orElse(3);
+
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(todayKolkata, effectiveDate);
+        if (daysBetween < 0 || daysBetween > bookingWindowDays) {
+            return List.of();
+        }
 
         if (isHolidayOrDisabled(effectiveDate)) {
             return List.of();
@@ -179,14 +201,23 @@ public class CustomerService {
             }
         }
 
-        LocalDateTime limitDateTime = LocalDateTime.now().plusMinutes(30);
+        LocalTime nowKolkata = LocalTime.now(kolkataZone);
 
         return slotRepository
                 .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType)
                 .stream()
                 .filter(slot -> {
-                    LocalDateTime slotDateTime = effectiveDate.atTime(LocalTime.parse(slot.getStartTime()));
-                    return !slotDateTime.isBefore(limitDateTime);
+                    if (effectiveDate.equals(todayKolkata)) {
+                        // TODAY only: Hide slots that have already ended
+                        try {
+                            LocalTime endTime = LocalTime.parse(slot.getEndTime());
+                            return endTime.isAfter(nowKolkata);
+                        } catch (Exception e) {
+                            return true;
+                        }
+                    }
+                    // TOMORROW and future dates: Show all active slots
+                    return true;
                 })
                 .map(slot -> {
                     Slot availableSlot = new Slot();
@@ -221,20 +252,35 @@ public class CustomerService {
     @Transactional
     public Booking createBooking(BookingRequest request) {
 
+        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
+        LocalDate todayKolkata = LocalDate.now(kolkataZone);
+
         LocalDate bookingDate =
                 request.bookingDate() != null
                         ? request.bookingDate()
-                        : LocalDate.now();
+                        : todayKolkata;
+
+        // Check booking window
+        int bookingWindowDays = settingsRepository.findByKeyName("bookingWindow")
+                .or(() -> settingsRepository.findByKeyName("BOOKING_WINDOW_DAYS"))
+                .map(Settings::getSettingValue)
+                .map(val -> {
+                    try {
+                        return Integer.parseInt(val);
+                    } catch (Exception e) {
+                        return 3;
+                    }
+                })
+                .orElse(3);
+
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(todayKolkata, bookingDate);
+        if (daysBetween < 0 || daysBetween > bookingWindowDays) {
+            throw new BadRequestException("Selected date is outside the booking window.");
+        }
 
         if (isHolidayOrDisabled(bookingDate)) {
             throw new BadRequestException(
                     "No slots available today due to holiday."
-            );
-        }
-
-        if (bookingDate.isBefore(LocalDate.now())) {
-            throw new BadRequestException(
-                    "Booking date cannot be in the past."
             );
         }
 
@@ -250,10 +296,20 @@ public class CustomerService {
             throw new BadRequestException("This time slot is inactive and cannot be booked.");
         }
 
-        LocalDateTime limitDateTime = LocalDateTime.now().plusMinutes(30);
-        LocalDateTime slotDateTime = bookingDate.atTime(LocalTime.parse(slot.getStartTime()));
-        if (slotDateTime.isBefore(limitDateTime)) {
-            throw new BadRequestException("This time slot has already expired or is too close to start.");
+        // TODAY only: Validate slot expiration (end time)
+        if (bookingDate.equals(todayKolkata)) {
+            LocalTime nowKolkata = LocalTime.now(kolkataZone);
+            try {
+                LocalTime endTime = LocalTime.parse(slot.getEndTime());
+                if (!endTime.isAfter(nowKolkata)) {
+                    throw new BadRequestException("This time slot has already expired.");
+                }
+            } catch (Exception e) {
+                if (e instanceof BadRequestException) {
+                    throw e;
+                }
+                throw new BadRequestException("This time slot has an invalid time format.");
+            }
         }
 
         if (slot.getCardType() != request.cardType()) {
@@ -324,7 +380,7 @@ public class CustomerService {
                         && b.getStatus() != BookingStatus.CANCELLED);
 
         if (alreadyBooked) {
-            String timeRef = bookingDate.equals(LocalDate.now()) ? "today" : "this date";
+            String timeRef = bookingDate.equals(todayKolkata) ? "today" : "this date";
             throw new BadRequestException(
                     request.cardType() == CardType.GROCERY
                             ? "You have already booked a Grocery slot for " + timeRef + "."
@@ -371,7 +427,7 @@ public class CustomerService {
 
         smsService.sendBookingConfirmation(savedBooking);
 
-        if (bookingDate.equals(LocalDate.now())) {
+        if (bookingDate.equals(todayKolkata)) {
             slot.setBookedCount((int) bookedForSelectedDate + 1);
             slotRepository.save(slot);
         }
@@ -404,7 +460,8 @@ public class CustomerService {
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
-        if (booking.getBookingDate().equals(LocalDate.now())) {
+        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
+        if (booking.getBookingDate().equals(LocalDate.now(kolkataZone))) {
             Slot slot = booking.getSlot();
             if (slot != null) {
                 long currentBookedCount = bookingRepository
@@ -543,7 +600,8 @@ public class CustomerService {
 
         long registeredMembers = memberRepository.count();
 
-        long todayBookings = bookingRepository.countByBookingDate(LocalDate.now());
+        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
+        long todayBookings = bookingRepository.countByBookingDate(LocalDate.now(kolkataZone));
 
         List<Slot> availableSlots =
                 slotRepository.findByActiveTrueOrderByStartTimeAsc();
