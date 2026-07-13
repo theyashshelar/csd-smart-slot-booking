@@ -65,6 +65,11 @@ public class AuthService {
             throw new IllegalArgumentException("Grocery Card Number and Liquor Card Number cannot be the same.");
         }
 
+        if ((request.getGroceryCardNumber() == null || request.getGroceryCardNumber().isBlank())
+                && (request.getLiquorCardNumber() == null || request.getLiquorCardNumber().isBlank())) {
+            throw new IllegalArgumentException("Please provide at least one CSD Card Number (Grocery or Liquor).");
+        }
+
         if (request.getGroceryCardNumber() != null
                 && !request.getGroceryCardNumber().isBlank()
                 && memberRepository.existsByGroceryCardNumber(request.getGroceryCardNumber())) {
