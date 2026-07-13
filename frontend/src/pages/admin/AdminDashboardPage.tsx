@@ -91,11 +91,31 @@ function normalizeChart(data: DashboardChartPoint[]) {
   }))
 }
 
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return null
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const ampm = match[3].toUpperCase()
+  if (ampm === 'PM' && hours < 12) hours += 12
+  if (ampm === 'AM' && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>(emptyStats)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [settings, setSettings] = useState<Record<string, string>>({})
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1)
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -144,26 +164,57 @@ export default function AdminDashboardPage() {
   // Helper to compute operational status
   const todayStatus = useMemo(() => {
     const isBookingEnabled = settings.BOOKING_ENABLED !== 'false'
-    if (!isBookingEnabled) return { label: 'Suspended (Offline)', color: '#D32F2F' }
+    if (!isBookingEnabled) {
+      return { label: 'Suspended', subLabel: 'Suspended (Offline)', color: '#D32F2F' }
+    }
 
-    const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+    const now = new Date()
+    // Today date and day name in Kolkata
+    const todayKolkata = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+    const todayDayName = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' })
+
     const weeklyHolidays = settings.weeklyHolidays
       ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : ['Sunday']
-    if (weeklyHolidays.includes(todayDayName)) {
-      return { label: 'Closed (Weekly Holiday)', color: '#D32F2F' }
-    }
-
-    const todayStr = new Date().toISOString().slice(0, 10)
+    
     const specialHolidays = settings.specialHolidays
       ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : []
-    if (specialHolidays.includes(todayStr)) {
-      return { label: 'Closed (Special Holiday)', color: '#D32F2F' }
+
+    if (weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)) {
+      return { label: 'Holiday', subLabel: 'Holiday - Operations Closed', color: '#D32F2F' }
     }
 
-    return { label: 'Open & Active', color: '#2E7D32' }
-  }, [settings])
+    const opStr = settings.openingTime || '09:00 AM'
+    const clStr = settings.closingTime || '05:00 PM'
+    const lhStartStr = settings.lunchBreakStart || '01:00 PM'
+    const lhEndStr = settings.lunchBreakEnd || '02:00 PM'
+
+    const opMin = parseTimeToMinutes(opStr) ?? (9 * 60)
+    const clMin = parseTimeToMinutes(clStr) ?? (17 * 60)
+    const lhStartMin = parseTimeToMinutes(lhStartStr) ?? (13 * 60)
+    const lhEndMin = parseTimeToMinutes(lhEndStr) ?? (14 * 60)
+
+    const currentKolkataTimeStr = now.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    })
+    const curMin = parseTimeToMinutes(currentKolkataTimeStr) ?? 0
+
+    if (curMin < opMin) {
+      return { label: 'Closed', subLabel: `Opens at ${opStr}`, color: '#D32F2F' }
+    } else if (curMin >= opMin && curMin < lhStartMin) {
+      return { label: 'Open', subLabel: 'Operations in progress', color: '#2E7D32' }
+    } else if (curMin >= lhStartMin && curMin < lhEndMin) {
+      return { label: 'Lunch Break', subLabel: `Operations resume at ${lhEndStr}`, color: '#F59E0B' }
+    } else if (curMin >= lhEndMin && curMin < clMin) {
+      return { label: 'Open', subLabel: 'Operations in progress', color: '#2E7D32' }
+    } else {
+      return { label: 'Closed', subLabel: "Today's operations have ended", color: '#D32F2F' }
+    }
+  }, [settings, tick])
 
   // Helper to compute next holiday
   const nextHoliday = useMemo(() => {
@@ -255,6 +306,9 @@ export default function AdminDashboardPage() {
                     {todayStatus.label}
                   </Typography>
                 </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
+                  {todayStatus.subLabel}
+                </Typography>
               </Grid>
               
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>

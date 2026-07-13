@@ -5,6 +5,7 @@ import com.csd.backend.dto.MemberRequest;
 import com.csd.backend.dto.SlotRequest;
 import com.csd.backend.dto.SystemSettingsResponse;
 import com.csd.backend.entity.*;
+import com.csd.backend.exception.BadRequestException;
 import com.csd.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
@@ -415,6 +417,8 @@ public class AdminService {
     @Transactional
     public Slot createSlot(SlotRequest request) {
 
+        validateSlot(request);
+
         Slot slot = new Slot();
 
         slot.setLabel(request.label());
@@ -442,6 +446,8 @@ public class AdminService {
     @Transactional
     public Slot updateSlot(Long id, SlotRequest request) {
 
+        validateSlot(request);
+
         Slot slot = slotRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Slot not found"));
@@ -463,6 +469,112 @@ public class AdminService {
         );
 
         return updatedSlot;
+    }
+
+    private void validateSlot(SlotRequest request) {
+        if (request.startTime() == null || request.startTime().trim().isEmpty() ||
+                request.endTime() == null || request.endTime().trim().isEmpty()) {
+            throw new BadRequestException("Slot start time and end time are required");
+        }
+
+        LocalTime startTime;
+        LocalTime endTime;
+        try {
+            startTime = LocalTime.parse(request.startTime());
+            endTime = LocalTime.parse(request.endTime());
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid slot start or end time format");
+        }
+
+        // Rule 4: Start Time must always be earlier than End Time
+        if (!startTime.isBefore(endTime)) {
+            throw new BadRequestException("Slot start time must be earlier than slot end time");
+        }
+
+        // Rule 1: Slot Start Time must be >= Opening Time
+        String openingTimeStr = settingsRepository.findByKeyName("openingTime")
+                .map(Settings::getSettingValue)
+                .orElse("09:00 AM");
+        LocalTime openingTime = parseTime12h(openingTimeStr);
+        if (openingTime == null) openingTime = LocalTime.of(9, 0);
+        if (startTime.isBefore(openingTime)) {
+            throw new BadRequestException("Slot start time must be at or after opening time (" + openingTimeStr + ")");
+        }
+
+        // Rule 2: Slot End Time must be <= Closing Time
+        String closingTimeStr = settingsRepository.findByKeyName("closingTime")
+                .map(Settings::getSettingValue)
+                .orElse("05:00 PM");
+        LocalTime closingTime = parseTime12h(closingTimeStr);
+        if (closingTime == null) closingTime = LocalTime.of(17, 0);
+        if (endTime.isAfter(closingTime)) {
+            throw new BadRequestException("Slot end time must be at or before closing time (" + closingTimeStr + ")");
+        }
+
+        // Rule 3: A slot must NOT overlap the configured Lunch Break
+        String lunchStartStr = settingsRepository.findByKeyName("lunchBreakStart")
+                .map(Settings::getSettingValue)
+                .orElse("01:00 PM");
+        String lunchEndStr = settingsRepository.findByKeyName("lunchBreakEnd")
+                .map(Settings::getSettingValue)
+                .orElse("02:00 PM");
+        LocalTime lunchStart = parseTime12h(lunchStartStr);
+        LocalTime lunchEnd = parseTime12h(lunchEndStr);
+        if (lunchStart == null) lunchStart = LocalTime.of(13, 0);
+        if (lunchEnd == null) lunchEnd = LocalTime.of(14, 0);
+        if (startTime.isBefore(lunchEnd) && lunchStart.isBefore(endTime)) {
+            throw new BadRequestException("Slot overlaps with the configured lunch break (" + lunchStartStr + " - " + lunchEndStr + ")");
+        }
+
+        // Rule 5: Capacity entered while creating/editing a slot must NOT exceed the configured capacity for that card type
+        if (request.cardType() == CardType.GROCERY) {
+            int maxGrocery = settingsRepository.findByKeyName("groceryCapacity")
+                    .map(Settings::getSettingValue)
+                    .map(val -> {
+                        try { return Integer.parseInt(val); } catch (Exception e) { return 50; }
+                    })
+                    .orElse(50);
+            if (request.capacity() > maxGrocery) {
+                throw new BadRequestException("Capacity for Grocery slot cannot exceed configured maximum of " + maxGrocery);
+            }
+        } else if (request.cardType() == CardType.LIQUOR) {
+            int maxLiquor = settingsRepository.findByKeyName("liquorCapacity")
+                    .map(Settings::getSettingValue)
+                    .map(val -> {
+                        try { return Integer.parseInt(val); } catch (Exception e) { return 30; }
+                    })
+                    .orElse(30);
+            if (request.capacity() > maxLiquor) {
+                throw new BadRequestException("Capacity for Liquor slot cannot exceed configured maximum of " + maxLiquor);
+            }
+        }
+    }
+
+    private LocalTime parseTime12h(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            String clean = timeStr.trim().toUpperCase();
+            boolean pm = clean.contains("PM");
+            boolean am = clean.contains("AM");
+            clean = clean.replace("AM", "").replace("PM", "").trim();
+            String[] parts = clean.split(":");
+            if (parts.length < 2) {
+                return null;
+            }
+            int hour = Integer.parseInt(parts[0].trim());
+            int minute = Integer.parseInt(parts[1].substring(0, 2).trim());
+            if (pm && hour < 12) {
+                hour += 12;
+            }
+            if (am && hour == 12) {
+                hour = 0;
+            }
+            return LocalTime.of(hour, minute);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     //Delete Slots
