@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import Inventory2Rounded from '@mui/icons-material/Inventory2Rounded'
 import Box from '@mui/material/Box'
@@ -35,7 +37,17 @@ function getDisplayDate(dateObj: Date) {
 }
 
 export default function AvailabilitySection({ data, totals, loading }: AvailabilitySectionProps) {
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'GROCERY' | 'LIQUOR'>('ALL')
   const slots = data?.availableSlots ?? []
+
+  const allCount = slots.length
+  const groceryCount = slots.filter((s) => s.cardType === 'GROCERY').length
+  const liquorCount = slots.filter((s) => s.cardType === 'LIQUOR').length
+
+  const filteredSlots = slots.filter((s) => {
+    if (activeFilter === 'ALL') return true
+    return s.cardType === activeFilter
+  })
 
   return (
     <Box component="section" id="availability" sx={{ px: { xs: 2, sm: 3 }, py: { xs: 7, md: 10 }, bgcolor: '#FFFFFF' }}>
@@ -61,8 +73,8 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Stack>
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            <Chip icon={<Inventory2Rounded />} label={`${totals.available} available`} color="success" />
-            <Chip icon={<AccessTimeRounded />} label={`${totals.activeSlots} active slots`} variant="outlined" />
+            <Chip icon={<Inventory2Rounded />} label={`${totals.available} Seats Available`} color="success" />
+            <Chip icon={<AccessTimeRounded />} label={`${totals.activeSlots} Time Slots`} variant="outlined" />
           </Stack>
         </Stack>
 
@@ -81,73 +93,136 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Card>
         )}
 
+        {/* Segmented Filter */}
+        {!loading && slots.length > 0 && (
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-start' }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                p: 0.6,
+                borderRadius: '999px',
+                bgcolor: '#F1F5F1',
+                border: '1px solid rgba(46, 125, 50, 0.08)',
+                width: { xs: '100%', sm: 'auto' },
+                display: 'inline-flex'
+              }}
+            >
+              {[
+                { value: 'ALL', label: `All (${allCount})` },
+                { value: 'GROCERY', label: `Grocery (${groceryCount})` },
+                { value: 'LIQUOR', label: `Liquor (${liquorCount})` }
+              ].map((filter) => {
+                const isActive = activeFilter === filter.value
+                return (
+                  <Box
+                    key={filter.value}
+                    component="button"
+                    onClick={() => setActiveFilter(filter.value as any)}
+                    sx={{
+                      px: { xs: 2.2, sm: 3 },
+                      py: 1,
+                      borderRadius: '999px',
+                      fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      bgcolor: isActive ? '#2E7D32' : 'transparent',
+                      color: isActive ? '#FFFFFF' : '#4E5F52',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        color: isActive ? '#FFFFFF' : '#1B5E20',
+                        bgcolor: isActive ? '#2E7D32' : 'rgba(46, 125, 50, 0.04)'
+                      }
+                    }}
+                  >
+                    {filter.label}
+                  </Box>
+                )
+              })}
+            </Stack>
+          </Box>
+        )}
+
         <Grid container spacing={2.5}>
-          {slots.map((slot) => {
-            const remaining = getRemaining(slot)
-            const percent = slot.capacity > 0 ? Math.min((slot.bookedCount / slot.capacity) * 100, 100) : 0
-            const full = remaining <= 0
+          <AnimatePresence mode="popLayout">
+            {filteredSlots.map((slot) => {
+              const remaining = getRemaining(slot)
+              const percent = slot.capacity > 0 ? Math.min((slot.bookedCount / slot.capacity) * 100, 100) : 0
+              const full = remaining <= 0
 
-            return (
-              <Grid key={slot.id} size={{ xs: 12, md: 6, lg: 4 }}>
-                <Card sx={{ height: '100%', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Stack spacing={2.5}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                        <Box>
-                          <Typography variant="overline" color="text.secondary" fontWeight={850}>
-                            {slot.cardType}
-                          </Typography>
-                          <Typography variant="h5" fontWeight={850}>
-                            {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
-                          </Typography>
-                        </Box>
-
-                        <Chip
-                          size="small"
-                          color={full ? 'error' : remaining <= 5 ? 'warning' : 'success'}
-                          label={full ? 'Full' : 'Available'}
-                        />
-                      </Stack>
-
-                      <Stack spacing={1}>
-                        <Stack direction="row" justifyContent="space-between">
-                          <Typography variant="body2" color="text.secondary">
-                            {formatSlotLabel(slot.label)}
-                          </Typography>
-                          <Typography variant="body2" fontWeight={850}>
-                            {remaining} remaining
-                          </Typography>
-                        </Stack>
-                        <LinearProgress
-                          variant="determinate"
-                          value={percent}
-                          color={full ? 'error' : 'success'}
-                          sx={{ height: 9, borderRadius: 99, bgcolor: '#EEF4EF' }}
-                        />
-                      </Stack>
-
-                      <Grid container spacing={1}>
-                        {[
-                          ['Capacity', slot.capacity],
-                          ['Booked', slot.bookedCount],
-                          ['Available', remaining],
-                        ].map(([label, value]) => (
-                          <Grid key={label} size={4}>
-                            <Box sx={{ p: 1.3, borderRadius: 3, bgcolor: '#F8FAF8', border: '1px solid rgba(46,125,50,0.10)' }}>
-                              <Typography fontWeight={850}>{value}</Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {label}
+              return (
+                <Grid key={slot.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ height: '100%' }}
+                  >
+                    <Card sx={{ height: '100%', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
+                      <CardContent sx={{ p: 3 }}>
+                        <Stack spacing={2.5}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                            <Box>
+                              <Typography variant="overline" color="text.secondary" fontWeight={850}>
+                                {slot.cardType}
+                              </Typography>
+                              <Typography variant="h5" fontWeight={850}>
+                                {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                               </Typography>
                             </Box>
+
+                            <Chip
+                              size="small"
+                              color={full ? 'error' : remaining <= 5 ? 'warning' : 'success'}
+                              label={full ? 'Full' : 'Available'}
+                            />
+                          </Stack>
+
+                          <Stack spacing={1}>
+                            <Stack direction="row" justifyContent="space-between">
+                              <Typography variant="body2" color="text.secondary">
+                                {formatSlotLabel(slot.label)}
+                              </Typography>
+                              <Typography variant="body2" fontWeight={850}>
+                                {remaining} remaining
+                              </Typography>
+                            </Stack>
+                            <LinearProgress
+                              variant="determinate"
+                              value={percent}
+                              color={full ? 'error' : 'success'}
+                              sx={{ height: 9, borderRadius: 99, bgcolor: '#EEF4EF' }}
+                            />
+                          </Stack>
+
+                          <Grid container spacing={1}>
+                            {[
+                              ['Capacity', slot.capacity],
+                              ['Booked', slot.bookedCount],
+                              ['Available', remaining],
+                            ].map(([label, value]) => (
+                              <Grid key={label} size={4}>
+                                <Box sx={{ p: 1.3, borderRadius: 3, bgcolor: '#F8FAF8', border: '1px solid rgba(46,125,50,0.10)' }}>
+                                  <Typography fontWeight={850}>{value}</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {label}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            ))}
                           </Grid>
-                        ))}
-                      </Grid>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )
-          })}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </Grid>
+              )
+            })}
+          </AnimatePresence>
         </Grid>
       </Box>
     </Box>
