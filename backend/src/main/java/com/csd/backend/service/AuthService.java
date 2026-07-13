@@ -40,7 +40,19 @@ public class AuthService {
             );
         }
 
-        if (memberRepository.existsByMobileNumber(request.getMobileNumber())) {
+        String mobile = request.getMobileNumber();
+        if (mobile == null || mobile.isBlank()) {
+            throw new IllegalArgumentException("Mobile Number is required.");
+        }
+        String cleanedMobile = mobile.replaceAll("\\D", "");
+        if (cleanedMobile.length() == 12 && cleanedMobile.startsWith("91")) {
+            cleanedMobile = cleanedMobile.substring(2);
+        }
+        if (cleanedMobile.length() != 10) {
+            throw new IllegalArgumentException("Mobile number must contain exactly 10 digits.");
+        }
+
+        if (memberRepository.existsByMobileNumber(cleanedMobile)) {
             throw new IllegalArgumentException("Mobile number is already registered.");
         }
 
@@ -79,7 +91,7 @@ public class AuthService {
 
         Member member = Member.builder()
                 .fullName(request.getFullName())
-                .mobileNumber(request.getMobileNumber())
+                .mobileNumber(cleanedMobile)
                 .dateOfBirth(request.getDateOfBirth())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .groceryCardNumber(groceryCardNumber)

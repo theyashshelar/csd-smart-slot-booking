@@ -70,6 +70,12 @@ export default function CustomerRegisterPage() {
       mobileNumberRef.current?.focus()
       return
     }
+    if (mobileNumber.length !== 10) {
+      setError('Mobile number must contain exactly 10 digits.')
+      toast.error('Mobile number must contain exactly 10 digits.')
+      mobileNumberRef.current?.focus()
+      return
+    }
     if (dateOfBirth === '') {
       setError('Date of Birth is required.')
       toast.error('Date of Birth is required.')
@@ -241,15 +247,31 @@ export default function CustomerRegisterPage() {
                         size="small"
                         label="Mobile Number"
                         value={mobileNumber}
-                        onChange={(event) => setMobileNumber(event.target.value)}
+                        onChange={(event) => {
+                          const val = event.target.value.replace(/\D/g, '')
+                          if (val.length <= 10) {
+                            setMobileNumber(val)
+                          }
+                        }}
                         inputRef={mobileNumberRef}
                         disabled={loading}
                         slotProps={{
-                          htmlInput: { style: { borderRadius: '10px' } },
+                          htmlInput: {
+                            style: { borderRadius: '10px' },
+                            maxLength: 10,
+                            inputMode: 'numeric',
+                            pattern: '[0-9]*'
+                          },
                           input: {
                             startAdornment: (
                               <InputAdornment position="start">
-                                <PhoneIphoneRounded sx={{ fontSize: 18 }} />
+                                <PhoneIphoneRounded sx={{ fontSize: 18, mr: 0.5 }} />
+                                <Typography variant="body2" sx={{ color: 'text.secondary', mr: 1, fontWeight: 500 }}>
+                                  +91
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'divider', mr: 1 }}>
+                                  |
+                                </Typography>
                               </InputAdornment>
                             ),
                           }
