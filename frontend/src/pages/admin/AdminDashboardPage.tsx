@@ -42,6 +42,7 @@ import {
   YAxis,
 } from 'recharts'
 import { motion } from 'framer-motion'
+import { formatSlotLabel } from '../../utils/timeFormatter'
 import { getDashboard, getSettings } from '../../services/api'
 import type { DashboardChartPoint, DashboardStats, SettingsItem } from '../../types/api'
 
@@ -450,7 +451,7 @@ export default function AdminDashboardPage() {
                         <Box>
                           <Typography variant="body2" fontWeight={600}>{booking.token}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {booking.memberName} • {booking.slot}
+                            {booking.memberName} • {formatSlotLabel(booking.slot)}
                           </Typography>
                         </Box>
                         <Chip size="small" label={booking.status} color={statusColors[booking.status] ?? 'default'} sx={{ borderRadius: '999px', fontSize: '0.7rem' }} />

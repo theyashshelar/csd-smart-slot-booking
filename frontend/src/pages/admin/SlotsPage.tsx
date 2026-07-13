@@ -32,6 +32,7 @@ import {
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { formatTime12h, formatSlotLabel } from "../../utils/timeFormatter";
 
 import {
     changeSlotStatus,
@@ -327,7 +328,7 @@ export default function SlotsPage() {
                                     <CardContent sx={{ p: 2 }}>
                                         <Stack spacing={1.5}>
                                             <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                <Typography variant="subtitle1" fontWeight={600} color="#111827">{slot.label}</Typography>
+                                                <Typography variant="subtitle1" fontWeight={600} color="#111827">{formatSlotLabel(slot.label)}</Typography>
                                                 <Stack direction="row" spacing={0.5}>
                                                     {!slot.active && (
                                                         <Chip
@@ -347,7 +348,7 @@ export default function SlotsPage() {
                                                 </Stack>
                                             </Stack>
                                             <Typography variant="body2" color="text.secondary">
-                                                Time: {slot.startTime} - {slot.endTime}
+                                                Time: {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                                             </Typography>
                                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                                 <Typography variant="body2" fontWeight="medium">

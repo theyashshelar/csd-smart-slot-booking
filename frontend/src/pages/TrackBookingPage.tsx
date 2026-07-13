@@ -20,6 +20,7 @@ import { SearchRounded, HelpOutlineRounded } from '@mui/icons-material'
 import { toast } from 'react-hot-toast'
 
 import { trackBooking, customerCancelBooking } from '../services/api'
+import { formatSlotLabel } from '../utils/timeFormatter'
 import type { Booking } from '../types/api'
 
 export default function TrackBookingPage() {
@@ -177,7 +178,7 @@ export default function TrackBookingPage() {
                     ['Token ID', booking.token],
                     ['Booking Date', booking.bookingDate],
                     ['Card Type', booking.cardType],
-                    ['Slot Schedule', booking.slot],
+                    ['Slot Schedule', formatSlotLabel(booking.slot)],
                   ].map(([label, value]) => (
                     <Grid size={{ xs: 12, sm: 6 }} key={label}>
                       <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>

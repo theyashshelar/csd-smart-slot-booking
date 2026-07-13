@@ -22,6 +22,7 @@ import {
 } from '@mui/material'
 import { toast } from 'react-hot-toast'
 import { getMemberBookings, customerCancelBooking } from '../../services/api'
+import { formatSlotLabel } from '../../utils/timeFormatter'
 import type { Booking } from '../../types/api'
 
 export default function BookingHistoryPage() {
@@ -138,7 +139,7 @@ export default function BookingHistoryPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell>{booking.bookingDate}</TableCell>
-                                                <TableCell>{booking.slot}</TableCell>
+                                                <TableCell>{formatSlotLabel(booking.slot)}</TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         label={booking.status}

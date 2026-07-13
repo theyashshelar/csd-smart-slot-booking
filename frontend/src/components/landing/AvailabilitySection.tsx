@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { LandingTotals } from '../../pages/LandingPage'
 import type { LandingPageResponse, Slot } from '../../types/api'
+import { formatTime12h, formatSlotLabel } from '../../utils/timeFormatter'
 
 type AvailabilitySectionProps = {
   data: LandingPageResponse | null
@@ -80,7 +81,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
                             {slot.cardType}
                           </Typography>
                           <Typography variant="h5" fontWeight={850}>
-                            {slot.startTime} - {slot.endTime}
+                            {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                           </Typography>
                         </Box>
 
@@ -94,7 +95,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
                       <Stack spacing={1}>
                         <Stack direction="row" justifyContent="space-between">
                           <Typography variant="body2" color="text.secondary">
-                            {slot.label}
+                            {formatSlotLabel(slot.label)}
                           </Typography>
                           <Typography variant="body2" fontWeight={850}>
                             {remaining} remaining

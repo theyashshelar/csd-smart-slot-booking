@@ -32,6 +32,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { formatTime12h, formatSlotLabel } from '../../utils/timeFormatter'
 import {
   createBooking,
   getCustomerProfile,
@@ -493,9 +494,9 @@ export default function CustomerBookSlotPage() {
                           <Stack direction="row" justifyContent="space-between" spacing={2}>
                             <Box>
                               <Typography variant="subtitle1" fontWeight={700} color="#111827">
-                                {slot.startTime} - {slot.endTime}
+                                {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">{slot.label}</Typography>
+                              <Typography variant="caption" color="text.secondary">{formatSlotLabel(slot.label)}</Typography>
                             </Box>
                             <Chip
                               size="small"
@@ -571,8 +572,8 @@ export default function CustomerBookSlotPage() {
             <InfoRow label="Member" value={profile?.fullName || 'Unknown'} />
             <InfoRow label="Booking Date" value={formatDate(bookingDate)} />
             <InfoRow label="Card Type" value={cardType || 'Not selected'} />
-            <InfoRow label="Booking Time" value={selectedSlot ? `${selectedSlot.startTime} - ${selectedSlot.endTime}` : 'Not selected'} />
-            <InfoRow label="Slot" value={selectedSlot?.label || 'Not selected'} />
+            <InfoRow label="Booking Time" value={selectedSlot ? `${formatTime12h(selectedSlot.startTime)} – ${formatTime12h(selectedSlot.endTime)}` : 'Not selected'} />
+            <InfoRow label="Slot" value={selectedSlot ? formatSlotLabel(selectedSlot.label) : 'Not selected'} />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

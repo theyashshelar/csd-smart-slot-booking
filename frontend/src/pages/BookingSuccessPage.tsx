@@ -16,6 +16,7 @@ import {
   ReceiptLongRounded,
 } from '@mui/icons-material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
+import { formatTime12h, formatSlotLabel } from '../utils/timeFormatter'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
@@ -110,7 +111,7 @@ export default function BookingSuccessPage() {
                         <SummaryTile label="Booking Date" value={formatDate(bookingDate)} />
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <SummaryTile label="Booking Time" value={slot ? `${slot.startTime} - ${slot.endTime}` : booking.slot || 'Not available'} />
+                        <SummaryTile label="Booking Time" value={slot ? `${formatTime12h(slot.startTime)} – ${formatTime12h(slot.endTime)}` : formatSlotLabel(booking.slot) || 'Not available'} />
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <SummaryTile label="Card Type" value={cardType || 'Not available'} />

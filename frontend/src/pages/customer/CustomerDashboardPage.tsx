@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material'
 
 import { useNavigate } from 'react-router-dom'
+import { formatSlotLabel } from '../../utils/timeFormatter'
 
 import {
     getMemberBookings,
@@ -103,7 +104,7 @@ export default function CustomerDashboardPage() {
                                         <Grid size={{ xs: 12 }}>
                                             <Box sx={{ p: 1, borderRadius: '10px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
                                                 <Typography variant="caption" color="text.secondary" fontWeight={500} display="block">Date & Slot</Typography>
-                                                <Typography variant="body2" fontWeight={600} color="#111827">{upcoming.bookingDate} ({upcoming.slot})</Typography>
+                                                <Typography variant="body2" fontWeight={600} color="#111827">{upcoming.bookingDate} ({formatSlotLabel(upcoming.slot)})</Typography>
                                             </Box>
                                         </Grid>
                                     </Grid>

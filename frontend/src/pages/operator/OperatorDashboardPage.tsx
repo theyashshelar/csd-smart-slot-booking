@@ -55,6 +55,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 
 import QrScanner from "./QrScanner";
+import { formatTime12h, formatSlotLabel } from '../../utils/timeFormatter'
 
 export default function OperatorDashboardPage() {
 
@@ -567,7 +568,7 @@ export default function OperatorDashboardPage() {
                           Booking Time
                         </Typography>
                         <Typography variant="body1" fontWeight={800} color="#111827">
-                          {currentServing.slot?.startTime ? `${currentServing.slot.startTime} - ${currentServing.slot.endTime}` : 'N/A'}
+                          {currentServing.slot?.startTime ? `${formatTime12h(currentServing.slot.startTime)} – ${formatTime12h(currentServing.slot.endTime)}` : 'N/A'}
                         </Typography>
                       </Box>
                     </Box>
@@ -740,7 +741,7 @@ export default function OperatorDashboardPage() {
                           <TableCell>
                             <Box>
                               <Typography variant="body2" fontWeight={600} color="#374151">
-                                {booking.slot?.label || 'N/A'}
+                                {booking.slot?.label ? formatSlotLabel(booking.slot.label) : 'N/A'}
                               </Typography>
                               <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase' }}>
                                 {booking.slot?.cardType || 'N/A'}
@@ -874,7 +875,7 @@ export default function OperatorDashboardPage() {
                   ['Grocery Card', searchResult.groceryCardNumber || '-'],
                   ['Liquor Card', searchResult.liquorCardNumber || '-'],
                   ['Token', searchResult.token],
-                  ['Slot', searchResult.slotLabel],
+                  ['Slot', formatSlotLabel(searchResult.slotLabel)],
                   ['Booking Type', searchResult.bookingType],
                 ].map(([label, value]) => (
                   <Grid size={{ xs: 12, sm: 4, md: 3 }} key={label}>
