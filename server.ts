@@ -808,6 +808,44 @@ app.post('/api/customer/book', (req, res) => {
   res.json(newBooking)
 })
 
+app.post('/api/customer/cancel/:bookingId/:memberId', (req, res) => {
+  const bookingId = Number(req.params.bookingId)
+  const memberId = Number(req.params.memberId)
+
+  const booking = bookings.find(b => b.id === bookingId)
+  if (!booking) {
+    return res.status(404).json({ error: 'NotFound', message: 'Booking not found.' })
+  }
+
+  if (booking.memberId !== memberId) {
+    return res.status(400).json({ error: 'BadRequest', message: 'You can only cancel your own bookings.' })
+  }
+
+  if (booking.status !== 'BOOKED') {
+    return res.status(400).json({ error: 'BadRequest', message: 'Only bookings with status BOOKED can be cancelled.' })
+  }
+
+  booking.status = 'CANCELLED'
+
+  // Update slot bookedCount
+  const slot = slots.find(s => s.id === booking.slotId)
+  if (slot) {
+    slot.bookedCount = bookings.filter(b => b.slotId === slot.id && b.bookingDate === booking.bookingDate && b.status !== 'CANCELLED').length
+  }
+
+  // Create audit log
+  const member = members.find(m => m.id === memberId)
+  auditLogs.push({
+    id: auditLogs.length + 1,
+    actor: member ? member.fullName : 'customer',
+    action: 'CANCEL_BOOKING',
+    details: `Cancelled Booking ID : ${booking.id} for slot : ${booking.bookingLabel}`,
+    createdAt: new Date().toISOString()
+  })
+
+  res.send('Booking cancelled successfully.')
+})
+
 app.get('/api/customer/history/:memberId', (req, res) => {
   const memberId = Number(req.params.memberId)
   const history = bookings.filter(b => b.memberId === memberId).map(b => {
@@ -964,6 +1002,10 @@ app.post('/api/operator/check-in/:bookingId', (req, res) => {
   const idx = bookings.findIndex(b => b.id === bookingId)
   if (idx === -1) return res.status(404).json({ error: 'Booking not found' })
 
+  if (bookings[idx].status !== 'BOOKED') {
+    return res.status(400).json({ error: 'BadRequest', message: 'Booking already processed or cancelled.' })
+  }
+
   bookings[idx].status = 'CHECKED_IN'
   bookings[idx].checkedInAt = new Date().toISOString()
   res.json(bookings[idx])
@@ -973,6 +1015,10 @@ app.post('/api/operator/check-out/:bookingId', (req, res) => {
   const bookingId = Number(req.params.bookingId)
   const idx = bookings.findIndex(b => b.id === bookingId)
   if (idx === -1) return res.status(404).json({ error: 'Booking not found' })
+
+  if (bookings[idx].status !== 'CHECKED_IN') {
+    return res.status(400).json({ error: 'BadRequest', message: 'Customer has not checked in.' })
+  }
 
   bookings[idx].status = 'CHECKED_OUT'
   bookings[idx].checkedOutAt = new Date().toISOString()
@@ -984,7 +1030,30 @@ app.post('/api/operator/cancel/:bookingId', (req, res) => {
   const idx = bookings.findIndex(b => b.id === bookingId)
   if (idx === -1) return res.status(404).json({ error: 'Booking not found' })
 
+  if (bookings[idx].status === 'CANCELLED') {
+    return res.status(400).json({ error: 'BadRequest', message: 'Booking already cancelled.' })
+  }
+  if (bookings[idx].status === 'CHECKED_OUT') {
+    return res.status(400).json({ error: 'BadRequest', message: 'Checked out booking cannot be cancelled.' })
+  }
+
   bookings[idx].status = 'CANCELLED'
+
+  // Update slot bookedCount
+  const booking = bookings[idx]
+  const slot = slots.find(s => s.id === booking.slotId)
+  if (slot) {
+    slot.bookedCount = bookings.filter(b => b.slotId === slot.id && b.bookingDate === booking.bookingDate && b.status !== 'CANCELLED').length
+  }
+
+  auditLogs.push({
+    id: auditLogs.length + 1,
+    actor: 'OPERATOR',
+    action: 'CANCEL_BOOKING',
+    details: booking.token,
+    createdAt: new Date().toISOString()
+  })
+
   res.json(bookings[idx])
 })
 

@@ -12,6 +12,8 @@ public record BookingHistoryResponse(
 
         Long bookingId,
 
+        Long memberId,
+
         LocalDate bookingDate,
 
         String token,

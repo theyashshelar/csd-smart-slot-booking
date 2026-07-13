@@ -373,6 +373,45 @@ public class CustomerService {
         return savedBooking;
     }
 
+    //Cancel Booking
+    @Transactional
+    public void cancelBooking(Long bookingId, Long memberId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BadRequestException("Booking not found."));
+
+        if (!booking.getMember().getId().equals(memberId)) {
+            throw new BadRequestException("You can only cancel your own bookings.");
+        }
+
+        if (booking.getStatus() != BookingStatus.BOOKED) {
+            throw new BadRequestException("Only bookings with status BOOKED can be cancelled.");
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+
+        if (booking.getBookingDate().equals(LocalDate.now())) {
+            Slot slot = booking.getSlot();
+            if (slot != null) {
+                long currentBookedCount = bookingRepository
+                        .findBySlotIdAndBookingDate(slot.getId(), booking.getBookingDate())
+                        .stream()
+                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
+                        .count();
+                slot.setBookedCount((int) currentBookedCount);
+                slotRepository.save(slot);
+            }
+        }
+
+        auditLogRepository.save(
+                log(
+                        booking.getMember().getMobileNumber(),
+                        "CANCEL_BOOKING",
+                        "Cancelled Booking ID : " + booking.getId() + " for slot : " + booking.getBookingLabel()
+                )
+        );
+    }
+
     //Booking History
     public List<BookingHistoryResponse> getBookingsForMember(Long memberId) {
 
@@ -381,6 +420,7 @@ public class CustomerService {
                 .stream()
                 .map(booking -> BookingHistoryResponse.builder()
                         .bookingId(booking.getId())
+                        .memberId(booking.getMember().getId())
                         .bookingDate(booking.getBookingDate())
                         .token(booking.getToken())
                         .cardType(booking.getSlot().getCardType())
@@ -405,6 +445,7 @@ public class CustomerService {
                 .stream()
                 .map(booking -> BookingHistoryResponse.builder()
                         .bookingId(booking.getId())
+                        .memberId(booking.getMember().getId())
                         .bookingDate(booking.getBookingDate())
                         .token(booking.getToken())
                         .cardType(booking.getSlot().getCardType())

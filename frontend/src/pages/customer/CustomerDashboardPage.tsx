@@ -214,7 +214,7 @@ export default function CustomerDashboardPage() {
                                 ) : (
                                     bookings.slice(0, 5).map((booking) => (
                                         <Card
-                                            key={booking.id}
+                                            key={booking.bookingId || booking.id}
                                             variant="outlined"
                                             sx={{ borderRadius: '10px', borderColor: '#E5E7EB', transition: 'background-color 0.2s', '&:hover': { bgcolor: '#F9FAFB' } }}
                                         >

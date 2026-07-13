@@ -27,6 +27,7 @@ export interface Slot {
 export interface Booking {
   id: number
   bookingId?: number
+  memberId?: number
   bookingDate: string
   token: string
   cardType: 'GROCERY' | 'LIQUOR'

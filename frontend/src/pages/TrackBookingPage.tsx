@@ -10,10 +10,16 @@ import {
   Typography,
   Alert,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material'
 import { SearchRounded, HelpOutlineRounded } from '@mui/icons-material'
+import { toast } from 'react-hot-toast'
 
-import { trackBooking } from '../services/api'
+import { trackBooking, customerCancelBooking } from '../services/api'
 import type { Booking } from '../types/api'
 
 export default function TrackBookingPage() {
@@ -21,6 +27,10 @@ export default function TrackBookingPage() {
   const [booking, setBooking] = useState<Booking | null>(null)
   const [error, setError] = useState('')
   const [searched, setSearched] = useState(false)
+
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   const searchBooking = async () => {
     setError('')
@@ -43,6 +53,37 @@ export default function TrackBookingPage() {
     } catch (e: any) {
       console.error(e)
       setError(e?.response?.data?.message || 'Unable to fetch booking. Please try again later.')
+    }
+  }
+
+  const handleOpenCancelDialog = (b: Booking) => {
+    setSelectedBooking(b)
+    setCancelDialogOpen(true)
+  }
+
+  const handleCloseCancelDialog = () => {
+    setSelectedBooking(null)
+    setCancelDialogOpen(false)
+  }
+
+  const handleConfirmCancel = async () => {
+    if (!selectedBooking) return
+    setCancelling(true)
+    try {
+      const bId = selectedBooking.bookingId || selectedBooking.id
+      const mId = selectedBooking.memberId
+      if (!mId) {
+        throw new Error('Member information not available on booking.')
+      }
+      await customerCancelBooking(bId, mId)
+      toast.success('Booking cancelled successfully.')
+      setBooking(prev => prev ? { ...prev, status: 'CANCELLED' } : null)
+      handleCloseCancelDialog()
+    } catch (e: any) {
+      console.error(e)
+      toast.error(e?.response?.data?.message || e?.message || 'Failed to cancel booking.')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -103,19 +144,32 @@ export default function TrackBookingPage() {
                   <Typography variant="h6" fontWeight={700} color="#2E7D32">
                     Booking Found
                   </Typography>
-                  <Chip
-                    label={booking.status}
-                    color={
-                      booking.status === 'BOOKED'
-                        ? 'warning'
-                        : booking.status === 'CHECKED_IN'
-                        ? 'info'
-                        : booking.status === 'CHECKED_OUT'
-                        ? 'success'
-                        : 'error'
-                    }
-                    sx={{ fontWeight: 600, borderRadius: '999px' }}
-                  />
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    {booking.status === 'BOOKED' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleOpenCancelDialog(booking)}
+                        sx={{ textTransform: 'none', borderRadius: '6px', fontWeight: 600, height: 26, fontSize: '0.75rem' }}
+                      >
+                        Cancel Booking
+                      </Button>
+                    )}
+                    <Chip
+                      label={booking.status}
+                      color={
+                        booking.status === 'BOOKED'
+                          ? 'warning'
+                          : booking.status === 'CHECKED_IN'
+                          ? 'info'
+                          : booking.status === 'CHECKED_OUT'
+                          ? 'success'
+                          : 'error'
+                      }
+                      sx={{ fontWeight: 600, borderRadius: '999px' }}
+                    />
+                  </Stack>
                 </Box>
 
                 <Grid container spacing={2}>
@@ -154,6 +208,59 @@ export default function TrackBookingPage() {
           </Card>
         )}
       </Stack>
+
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={handleCloseCancelDialog}
+        PaperProps={{
+          sx: { borderRadius: '12px', p: 1, maxWidth: '440px' }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Cancel Booking
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'text.primary' }}>
+            Are you sure you want to cancel this booking?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseCancelDialog}
+            variant="outlined"
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              color: 'text.secondary',
+              borderColor: 'divider',
+              '&:hover': {
+                borderColor: 'text.secondary',
+                bgcolor: 'action.hover'
+              }
+            }}
+          >
+            No, Keep Booking
+          </Button>
+          <Button
+            onClick={handleConfirmCancel}
+            variant="contained"
+            color="error"
+            disabled={cancelling}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: 'none'
+              }
+            }}
+          >
+            {cancelling ? 'Cancelling...' : 'Cancel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

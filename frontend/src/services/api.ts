@@ -101,7 +101,7 @@ api.interceptors.response.use(
           data: { message: friendlyMessage, error: friendlyMessage }
         }
       } else {
-        if (!error.response.data) {
+        if (!error.response.data || typeof error.response.data !== 'object') {
           error.response.data = {}
         }
         error.response.data.message = friendlyMessage
@@ -276,6 +276,12 @@ export const getMemberBookings = (
     memberId: number
 ) =>
     api.get(`/customer/history/${memberId}`)
+
+export const customerCancelBooking = (
+    bookingId: number,
+    memberId: number
+) =>
+    api.post(`/customer/cancel/${bookingId}/${memberId}`)
 
 export const getCustomerProfile = (memberId: number) =>
     api.get(`/customer/profile/${memberId}`)

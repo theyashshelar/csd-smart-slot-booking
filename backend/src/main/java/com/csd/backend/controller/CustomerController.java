@@ -52,6 +52,16 @@ public class CustomerController {
         );
     }
 
+    //Cancel Booking
+    @PostMapping("/cancel/{bookingId}/{memberId}")
+    public ResponseEntity<String> cancelBooking(
+            @PathVariable Long bookingId,
+            @PathVariable Long memberId) {
+
+        customerService.cancelBooking(bookingId, memberId);
+        return ResponseEntity.ok("Booking cancelled successfully.");
+    }
+
     //Booking History
     @GetMapping("/history/{memberId}")
     public ResponseEntity<List<BookingHistoryResponse>> getBookingHistory(
