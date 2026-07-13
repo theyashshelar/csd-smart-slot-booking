@@ -746,9 +746,17 @@ app.get('/api/customer/slots/:cardType', (req, res) => {
   const cardType = req.params.cardType.toUpperCase() as 'GROCERY' | 'LIQUOR'
   const bookingDate = (req.query.bookingDate as string) || getLocalDateString()
 
+  const limitTime = new Date(Date.now() + 30 * 60 * 1000)
+
   // For each active slot of this card type, count how many bookings exist for this slot on the given bookingDate
   const filteredSlots = slots
-    .filter(s => s.active && s.cardType === cardType)
+    .filter(s => {
+      if (!s.active || s.cardType !== cardType) {
+        return false
+      }
+      const slotDateTime = new Date(`${bookingDate}T${s.startTime}:00`)
+      return slotDateTime.getTime() >= limitTime.getTime()
+    })
     .map(s => {
       const bookedCountOnDate = bookings.filter(b => b.slotId === s.id && b.bookingDate === bookingDate && b.status !== 'CANCELLED').length
       return {
@@ -772,6 +780,13 @@ app.post('/api/customer/book', (req, res) => {
 
   if (!slot.active) {
     return res.status(400).json({ error: 'This time slot is currently inactive.' })
+  }
+
+  // Validate slot expiration
+  const limitTime = new Date(Date.now() + 30 * 60 * 1000)
+  const slotDateTime = new Date(`${bDate}T${slot.startTime}:00`)
+  if (slotDateTime.getTime() < limitTime.getTime()) {
+    return res.status(400).json({ error: 'This time slot has already expired or is too close to start.' })
   }
 
   // Check if slot capacity is full

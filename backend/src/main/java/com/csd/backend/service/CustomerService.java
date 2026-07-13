@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -177,9 +179,15 @@ public class CustomerService {
             }
         }
 
+        LocalDateTime limitDateTime = LocalDateTime.now().plusMinutes(30);
+
         return slotRepository
                 .findByCardTypeAndActiveTrueOrderByStartTimeAsc(cardType)
                 .stream()
+                .filter(slot -> {
+                    LocalDateTime slotDateTime = effectiveDate.atTime(LocalTime.parse(slot.getStartTime()));
+                    return !slotDateTime.isBefore(limitDateTime);
+                })
                 .map(slot -> {
                     Slot availableSlot = new Slot();
 
@@ -240,6 +248,12 @@ public class CustomerService {
 
         if (!Boolean.TRUE.equals(slot.getActive())) {
             throw new BadRequestException("This time slot is inactive and cannot be booked.");
+        }
+
+        LocalDateTime limitDateTime = LocalDateTime.now().plusMinutes(30);
+        LocalDateTime slotDateTime = bookingDate.atTime(LocalTime.parse(slot.getStartTime()));
+        if (slotDateTime.isBefore(limitDateTime)) {
+            throw new BadRequestException("This time slot has already expired or is too close to start.");
         }
 
         if (slot.getCardType() != request.cardType()) {
