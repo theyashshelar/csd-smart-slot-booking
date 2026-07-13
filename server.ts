@@ -487,13 +487,15 @@ app.put('/api/admin/slots/:id', (req, res) => {
   const idx = slots.findIndex(s => s.id === id)
   if (idx === -1) return res.status(404).json({ error: 'Slot not found' })
 
+  console.log(`[PUT /api/admin/slots/${id}] Incoming payload:`, req.body)
+
   const { label, cardType, startTime, endTime, capacity } = req.body
   slots[idx] = {
     ...slots[idx],
-    label: label || slots[idx].label,
-    cardType: cardType || slots[idx].cardType,
-    startTime: startTime || slots[idx].startTime,
-    endTime: endTime || slots[idx].endTime,
+    label: label !== undefined ? label : slots[idx].label,
+    cardType: cardType !== undefined ? cardType : slots[idx].cardType,
+    startTime: startTime !== undefined ? startTime : slots[idx].startTime,
+    endTime: endTime !== undefined ? endTime : slots[idx].endTime,
     capacity: capacity !== undefined ? parseInt(capacity) : slots[idx].capacity
   }
 

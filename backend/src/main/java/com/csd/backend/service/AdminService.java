@@ -447,6 +447,7 @@ public class AdminService {
                         new IllegalArgumentException("Slot not found"));
 
         slot.setLabel(request.label());
+        slot.setCardType(request.cardType());
         slot.setStartTime(request.startTime());
         slot.setEndTime(request.endTime());
         slot.setCapacity(request.capacity());
