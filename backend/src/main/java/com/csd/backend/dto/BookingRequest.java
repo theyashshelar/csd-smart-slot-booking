@@ -7,16 +7,16 @@ import java.time.LocalDate;
 
 public record BookingRequest(
 
-        @NotNull
-        Long memberId,
+    @NotNull
+    Long memberId,
 
-        @NotNull
-        Long slotId,
+    @NotNull
+    Long slotId,
 
-        @NotNull
-        CardType cardType,
+    @NotNull
+    CardType cardType,
 
-        LocalDate bookingDate
+    LocalDate bookingDate
 
 ) {
 }

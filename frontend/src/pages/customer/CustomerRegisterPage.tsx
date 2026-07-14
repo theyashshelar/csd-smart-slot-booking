@@ -237,7 +237,7 @@ export default function CustomerRegisterPage() {
                         fullWidth
                         required
                         size="small"
-                        label="Full Name"
+                        label="Full Name as per Card"
                         value={fullName}
                         onChange={(event) => setFullName(event.target.value)}
                         inputRef={fullNameRef}

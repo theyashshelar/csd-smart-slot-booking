@@ -140,8 +140,6 @@ export default function BookingSuccessPage() {
                         component="a"
                         href={qrUrl}
                         download={`${booking.token}.png`}
-                        target="_blank"
-                        rel="noreferrer"
                         variant="contained"
                         startIcon={<DownloadRounded />}
                         fullWidth
