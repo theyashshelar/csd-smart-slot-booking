@@ -1,3 +1,4 @@
+import { useEffect, useState, useMemo } from 'react'
 import {
   ArrowForwardRounded,
   CalendarMonthRounded,
@@ -19,6 +20,7 @@ import { motion } from 'framer-motion'
 import { Link as RouterLink } from 'react-router-dom'
 import type { LandingTotals } from '../../pages/LandingPage'
 import type { LandingPageResponse } from '../../types/api'
+import { getSettings } from '../../services/api'
 
 type HeroSectionProps = {
   data: LandingPageResponse | null
@@ -26,11 +28,94 @@ type HeroSectionProps = {
   loading: boolean
 }
 
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return null
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const ampm = match[3].toUpperCase()
+  if (ampm === 'PM' && hours < 12) hours += 12
+  if (ampm === 'AM' && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
+
 const formatNumber = (value?: number) =>
   typeof value === 'number' ? value.toLocaleString('en-IN') : '--'
 
 export default function HeroSection({ data, totals, loading }: HeroSectionProps) {
   const occupancy = totals.capacity > 0 ? Math.round((totals.booked / totals.capacity) * 100) : 0
+
+  const [settings, setSettings] = useState<Record<string, string>>({
+    openingTime: '09:00 AM',
+    closingTime: '05:00 PM',
+    lunchBreakStart: '01:00 PM',
+    lunchBreakEnd: '02:00 PM',
+    weeklyHolidays: 'Sunday',
+    specialHolidays: '',
+  })
+
+  useEffect(() => {
+    getSettings()
+      .then((res: any) => {
+        if (res.data && Array.isArray(res.data)) {
+          const mapped = res.data.reduce((acc: any, item: any) => {
+            acc[item.key] = item.value
+            return acc
+          }, {})
+          setSettings((prev) => ({ ...prev, ...mapped }))
+        }
+      })
+      .catch((err) => console.error('Failed to load settings in HeroSection', err))
+  }, [])
+
+  const statusInfo = useMemo(() => {
+    const now = new Date()
+    const todayDayName = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' })
+    const todayKolkata = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+
+    const weeklyHolidays = settings.weeklyHolidays
+      ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : ['Sunday']
+    
+    const specialHolidays = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+
+    if (weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)) {
+      return { label: 'Holiday', color: '#EF6C00' } // Orange/Amber 🟠
+    }
+
+    const opStr = settings.openingTime || '09:00 AM'
+    const clStr = settings.closingTime || '05:00 PM'
+    const lhStartStr = settings.lunchBreakStart || '01:00 PM'
+    const lhEndStr = settings.lunchBreakEnd || '02:00 PM'
+
+    const opMin = parseTimeToMinutes(opStr) ?? (9 * 60)
+    const clMin = parseTimeToMinutes(clStr) ?? (17 * 60)
+    const lhStartMin = parseTimeToMinutes(lhStartStr) ?? (13 * 60)
+    const lhEndMin = parseTimeToMinutes(lhEndStr) ?? (14 * 60)
+
+    const currentKolkataTimeStr = now.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    })
+    const curMin = parseTimeToMinutes(currentKolkataTimeStr) ?? 0
+
+    if (curMin < opMin) {
+      return { label: 'Canteen Closed', color: '#D32F2F' } // Red 🔴
+    } else if (curMin >= opMin && curMin < lhStartMin) {
+      return { label: 'Canteen Open', color: '#2E7D32' } // Green 🟢
+    } else if (curMin >= lhStartMin && curMin < lhEndMin) {
+      return { label: 'Lunch Break', color: '#F59E0B' } // Yellow 🟡
+    } else if (curMin >= lhEndMin && curMin < clMin) {
+      return { label: 'Canteen Open', color: '#2E7D32' } // Green 🟢
+    } else {
+      return { label: 'Canteen Closed', color: '#D32F2F' } // Red 🔴
+    }
+  }, [settings, data, totals])
 
   return (
     <Box
@@ -163,8 +248,8 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
               >
                 <Box sx={{ px: 2.5, py: 1.6, borderBottom: '1px solid rgba(17,24,39,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#FFFFFF' }}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#2E7D32' }} />
-                    <Typography fontWeight={850}>Live availability</Typography>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: statusInfo.color }} />
+                    <Typography fontWeight={850}>{statusInfo.label}</Typography>
                   </Stack>
                   <Chip label="Live Updates" size="small" color="success" variant="outlined" />
                 </Box>
