@@ -40,9 +40,29 @@ import {
     deleteSlot,
     getSlotsAdmin,
     updateSlot,
+    getSettings,
 } from "../../services/api";
 
-import type { Slot } from "../../types/api";
+import type { Slot, SettingsItem } from "../../types/api";
+
+function parseTimeToMinutes(timeStr: string): number | null {
+    if (!timeStr) return null;
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const ampm = match[3].toUpperCase();
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+}
+
+function parseHHMMToMinutes(timeStr: string): number {
+    const parts = timeStr.split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return h * 60 + m;
+}
 
 interface SlotForm {
     label: string;
@@ -80,6 +100,8 @@ export default function SlotsPage() {
 
     const [error, setError] = useState("");
 
+    const [settings, setSettings] = useState<Record<string, string>>({});
+
     const loadSlots = async () => {
         try {
             setLoading(true);
@@ -96,6 +118,15 @@ export default function SlotsPage() {
 
     useEffect(() => {
         loadSlots();
+        getSettings()
+            .then((res) => {
+                const mapped = ((res.data || []) as SettingsItem[]).reduce<Record<string, string>>((acc, item) => {
+                    if (item.keyName) acc[item.keyName] = item.settingValue || "";
+                    return acc;
+                }, {});
+                setSettings(mapped);
+            })
+            .catch((err) => console.error("Failed to load settings in slots page", err));
     }, []);
 
     const filteredSlots = useMemo(() => {
@@ -179,6 +210,63 @@ export default function SlotsPage() {
             setError("Capacity must be greater than 0.");
             toast.error("Capacity must be greater than 0.");
             return;
+        }
+
+        const startMin = parseHHMMToMinutes(form.startTime);
+        const endMin = parseHHMMToMinutes(form.endTime);
+
+        // Rule 4: Start Time must always be earlier than End Time
+        if (startMin >= endMin) {
+            setError("Slot Start Time must be earlier than Slot End Time.");
+            toast.error("Slot Start Time must be earlier than Slot End Time.");
+            return;
+        }
+
+        // Rule 1: Slot Start Time must be >= Opening Time
+        const opStr = settings.openingTime || "09:00 AM";
+        const opMin = parseTimeToMinutes(opStr) ?? (9 * 60);
+        if (startMin < opMin) {
+            setError(`Slot Start Time must be at or after Canteen Opening Time (${opStr}).`);
+            toast.error(`Slot Start Time must be at or after Canteen Opening Time (${opStr}).`);
+            return;
+        }
+
+        // Rule 2: Slot End Time must be <= Closing Time
+        const clStr = settings.closingTime || "05:00 PM";
+        const clMin = parseTimeToMinutes(clStr) ?? (17 * 60);
+        if (endMin > clMin) {
+            setError(`Slot End Time must be at or before Canteen Closing Time (${clStr}).`);
+            toast.error(`Slot End Time must be at or before Canteen Closing Time (${clStr}).`);
+            return;
+        }
+
+        // Rule 3: A slot must NOT overlap the configured Lunch Break
+        const lhStartStr = settings.lunchBreakStart || "01:00 PM";
+        const lhEndStr = settings.lunchBreakEnd || "02:00 PM";
+        const lhStartMin = parseTimeToMinutes(lhStartStr) ?? (13 * 60);
+        const lhEndMin = parseTimeToMinutes(lhEndStr) ?? (14 * 60);
+
+        if (startMin < lhEndMin && lhStartMin < endMin) {
+            setError(`Slot must not overlap the configured Lunch Break (${lhStartStr} - ${lhEndStr}).`);
+            toast.error(`Slot must not overlap the configured Lunch Break (${lhStartStr} - ${lhEndStr}).`);
+            return;
+        }
+
+        // Rule 5: Capacity entered while creating/editing a slot must NOT exceed the configured capacity for that card type
+        if (form.cardType === "GROCERY") {
+            const maxGrocery = settings.groceryCapacity ? parseInt(settings.groceryCapacity, 10) : 50;
+            if (form.capacity > maxGrocery) {
+                setError(`Capacity for Grocery slot cannot exceed configured maximum of ${maxGrocery}.`);
+                toast.error(`Capacity for Grocery slot cannot exceed configured maximum of ${maxGrocery}.`);
+                return;
+            }
+        } else if (form.cardType === "LIQUOR") {
+            const maxLiquor = settings.liquorCapacity ? parseInt(settings.liquorCapacity, 10) : 30;
+            if (form.capacity > maxLiquor) {
+                setError(`Capacity for Liquor slot cannot exceed configured maximum of ${maxLiquor}.`);
+                toast.error(`Capacity for Liquor slot cannot exceed configured maximum of ${maxLiquor}.`);
+                return;
+            }
         }
 
         try {
