@@ -189,10 +189,10 @@ export default function OperatorDashboardPage() {
         </Box>
         <Skeleton variant="rectangular" height={150} sx={{ borderRadius: '12px' }} />
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Skeleton variant="rectangular" height={220} sx={{ borderRadius: '12px' }} />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Skeleton variant="rectangular" height={220} sx={{ borderRadius: '12px' }} />
           </Grid>
         </Grid>
@@ -251,7 +251,7 @@ export default function OperatorDashboardPage() {
               ['Completed Checkout', overallCheckedOut, '#2563EB'],
               ['Total Cancelled', overallCancelled, '#DC2626'],
             ].map(([label, val, color]) => (
-              <Grid item xs={6} md={2.4} key={label as string}>
+              <Grid size={{ xs: 6, md: 2.4 }} key={label as string}>
                 <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#F9FAFB', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={750} display="block" sx={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
                     {label}
@@ -269,7 +269,7 @@ export default function OperatorDashboardPage() {
       {/* Counter Workspace Split Grid */}
       <Grid container spacing={3}>
         {/* Grocery Counter Status */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card id="grocery-workspace-card" sx={{ borderRadius: '12px', border: '1px solid #C8E6C9', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ bgcolor: '#E8F5E9', px: 3, py: 2, borderBottom: '1px solid #C8E6C9', display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <LocalGroceryStoreRounded sx={{ color: '#1B5E20' }} />
@@ -321,7 +321,7 @@ export default function OperatorDashboardPage() {
         </Grid>
 
         {/* Liquor Counter Status */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card id="liquor-workspace-card" sx={{ borderRadius: '12px', border: '1px solid #FFE0B2', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ bgcolor: '#FFF3E0', px: 3, py: 2, borderBottom: '1px solid #FFE0B2', display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <LocalBarRounded sx={{ color: '#E65100' }} />

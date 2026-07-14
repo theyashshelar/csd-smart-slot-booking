@@ -152,7 +152,7 @@ export default function SearchPanel({
                 ['Slot', formatSlotLabel(searchResult.slotLabel)],
                 ['Booking Type', searchResult.bookingType],
               ].map(([label, value]) => (
-                <Grid item xs={12} sm={4} md={3} key={label}>
+                <Grid size={{ xs: 12, sm: 4, md: 3 }} key={label}>
                   <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
                       {label}
@@ -163,7 +163,7 @@ export default function SearchPanel({
                   </Box>
                 </Grid>
               ))}
-              <Grid item xs={12} sm={4} md={3}>
+              <Grid size={{ xs: 12, sm: 4, md: 3 }}>
                 <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
                     Status

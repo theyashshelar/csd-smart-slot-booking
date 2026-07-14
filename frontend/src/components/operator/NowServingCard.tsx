@@ -51,11 +51,11 @@ export default function NowServingCard({
               {serving.token}
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              <Grid size={{ xs: 6 }}>
                 <Typography variant="caption" color={brandTextColor} fontWeight={600} display="block">Customer Name</Typography>
                 <Typography variant="subtitle2" fontWeight={800} color="#111827">{serving.member?.fullName || 'Unknown'}</Typography>
               </Grid>
-              <Grid item xs={6}>
+              <Grid size={{ xs: 6 }}>
                 <Typography variant="caption" color={brandTextColor} fontWeight={600} display="block">Time Slot</Typography>
                 <Typography variant="subtitle2" fontWeight={800} color="#111827">{serving.slot?.label || 'N/A'}</Typography>
               </Grid>

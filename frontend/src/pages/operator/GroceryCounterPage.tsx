@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Card,
+  CardContent,
   Chip,
   Grid,
   Stack,
@@ -206,10 +207,10 @@ export default function GroceryCounterPage() {
         </Card>
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '12px' }} />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '12px' }} />
           </Grid>
         </Grid>
@@ -244,7 +245,7 @@ export default function GroceryCounterPage() {
 
         <Grid container spacing={3}>
           {/* Now Serving */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <NowServingCard
               cardType="GROCERY"
               serving={groceryServing}
@@ -253,7 +254,7 @@ export default function GroceryCounterPage() {
           </Grid>
 
           {/* Search & Scan Panel */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <SearchPanel
               cardType="GROCERY"
               search={search}
@@ -281,7 +282,7 @@ export default function GroceryCounterPage() {
         {/* Bottom Lists: Completed and Cancelled Today */}
         <Grid container spacing={3}>
           {/* Completed Today */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card id="completed-grocery-card" sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
               <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
                 <Typography variant="subtitle2" fontWeight={800} color="#111827">
@@ -322,7 +323,7 @@ export default function GroceryCounterPage() {
           </Grid>
 
           {/* Cancelled Today */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card id="cancelled-grocery-card" sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
               <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
                 <Typography variant="subtitle2" fontWeight={800} color="#111827">

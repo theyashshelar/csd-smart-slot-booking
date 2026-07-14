@@ -47,7 +47,7 @@ export default function CounterSummaryCard({
       <CardContent sx={{ p: 2 }}>
         <Grid container spacing={1}>
           {stats.map((stat) => (
-            <Grid item xs={4} sm={2.4} key={stat.label}>
+            <Grid size={{ xs: 4, sm: 2.4 }} key={stat.label}>
               <Box sx={{ textAlign: 'center', p: 1, bgcolor: '#F9FAFB', borderRadius: '8px' }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ fontSize: '0.68rem' }}>
                   {stat.label}
