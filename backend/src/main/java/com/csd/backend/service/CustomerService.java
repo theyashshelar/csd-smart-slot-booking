@@ -423,7 +423,8 @@ public class CustomerService {
         booking.setToken(
                 tokenGenerator.generateToken(
                         request.cardType(),
-                        slot.getId()
+                        slot.getId(),
+                        bookingDate
                 )
         );
 

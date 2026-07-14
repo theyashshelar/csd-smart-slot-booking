@@ -67,6 +67,11 @@ export default function Sidebar() {
                 color: 'white',
                 display: { xs: 'none', md: 'flex' },
                 flexDirection: 'column',
+                position: 'sticky',
+                top: 0,
+                height: '100vh',
+                overflowY: 'auto',
+                flexShrink: 0,
             }}
         >
             <Box sx={{ p: 3 }}>

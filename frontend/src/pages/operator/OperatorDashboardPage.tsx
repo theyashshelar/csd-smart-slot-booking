@@ -22,17 +22,11 @@ import {
 } from '@mui/material'
 
 import {
-  People as PeopleIcon,
-  HourglassEmpty as HourglassEmptyIcon,
   CheckCircle as CheckCircleIcon,
-  ExitToApp as ExitToAppIcon,
   Search as SearchIcon,
   QrCodeScanner as QrCodeScannerIcon,
-  TrendingUp as TrendingUpIcon,
-  ArrowForward as ArrowForwardIcon,
   Inbox as InboxIcon,
   Cancel as CancelIcon,
-  CalendarMonth as CalendarMonthIcon,
 } from '@mui/icons-material'
 
 import {
@@ -42,7 +36,6 @@ import {
   checkOut,
   cancelBooking,
   getBookingByToken,
-  getReport,
 } from '../../services/api'
 
 import type {
@@ -55,7 +48,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 
 import QrScanner from "./QrScanner";
-import { formatTime12h, formatSlotLabel } from '../../utils/timeFormatter'
+import { formatSlotLabel } from '../../utils/timeFormatter'
 
 export default function OperatorDashboardPage() {
 
@@ -66,15 +59,10 @@ export default function OperatorDashboardPage() {
   const [searchResult, setSearchResult] = useState<OperatorSearchResponse | null>(null)
   const [error, setError] = useState('')
   const [searchError, setSearchError] = useState('')
-  const [activeTab, setActiveTab] = useState<'today' | 'upcoming'>('today')
 
-  const [stats, setStats] = useState({
-    total: 0,
-    waiting: 0,
-    checkedIn: 0,
-    completed: 0,
-    cancelled: 0,
-  })
+  // Separate tab states for independent queue navigation
+  const [groceryTab, setGroceryTab] = useState<'today' | 'upcoming'>('today')
+  const [liquorTab, setLiquorTab] = useState<'today' | 'upcoming'>('today')
 
   const getTodayString = () => {
     const d = new Date();
@@ -90,20 +78,8 @@ export default function OperatorDashboardPage() {
     }
     setError('')
     try {
-      const [queueRes, statsRes] = await Promise.all([
-        getQueue(),
-        getReport('today')
-      ])
-      setQueue(queueRes.data)
-      
-      const s = statsRes.data
-      setStats({
-        total: s.totalBookings || 0,
-        waiting: Math.max((s.totalBookings || 0) - (s.checkedIn || 0) - (s.checkedOut || 0) - (s.cancelled || 0), 0),
-        checkedIn: s.checkedIn || 0,
-        completed: s.checkedOut || 0,
-        cancelled: s.cancelled || 0,
-      })
+      const response = await getQueue()
+      setQueue(response.data || [])
     } catch (e: any) {
       setError(
           e?.response?.data?.message ||
@@ -195,8 +171,12 @@ export default function OperatorDashboardPage() {
 
   const todayStr = getTodayString()
 
-  // FEATURE 1 — Today's Queue
-  const sortedTodayQueue = [...queue]
+  // 1. Partition queue by cardType
+  const groceryQueue = queue.filter(b => b.slot?.cardType === 'GROCERY')
+  const liquorQueue = queue.filter(b => b.slot?.cardType === 'LIQUOR')
+
+  // 2. Today's sorted queues
+  const groceryTodayQueue = groceryQueue
     .filter(b => b.bookingDate === todayStr)
     .sort((a, b) => {
       const startTimeA = a.slot?.startTime || '';
@@ -204,38 +184,72 @@ export default function OperatorDashboardPage() {
       if (startTimeA !== startTimeB) {
         return startTimeA.localeCompare(startTimeB);
       }
-      const tokenA = a.token || '';
-      const tokenB = b.token || '';
-      return tokenA.localeCompare(tokenB);
+      return (a.token || '').localeCompare(b.token || '');
     });
 
-  // FEATURE 2 — Upcoming Bookings
-  const sortedUpcomingQueue = [...queue]
-    .filter(b => b.bookingDate > todayStr)
+  const liquorTodayQueue = liquorQueue
+    .filter(b => b.bookingDate === todayStr)
     .sort((a, b) => {
-      // 1. Booking Date
-      const dateA = a.bookingDate || '';
-      const dateB = b.bookingDate || '';
-      if (dateA !== dateB) {
-        return dateA.localeCompare(dateB);
-      }
-      // 2. Slot start time
       const startTimeA = a.slot?.startTime || '';
       const startTimeB = b.slot?.startTime || '';
       if (startTimeA !== startTimeB) {
         return startTimeA.localeCompare(startTimeB);
       }
-      // 3. Token number
-      const tokenA = a.token || '';
-      const tokenB = b.token || '';
-      return tokenA.localeCompare(tokenB);
+      return (a.token || '').localeCompare(b.token || '');
     });
 
-  // Now serving logic:
-  // Earliest BOOKED booking in sorted today's queue list
-  const bookedTodayBookings = sortedTodayQueue.filter(b => b.status === 'BOOKED');
-  const currentServing = bookedTodayBookings[0] || null;
-  const nextTokens = bookedTodayBookings.slice(1, 4);
+  // 3. Upcoming sorted queues
+  const groceryUpcomingQueue = groceryQueue
+    .filter(b => b.bookingDate > todayStr)
+    .sort((a, b) => {
+      const dateComp = (a.bookingDate || '').localeCompare(b.bookingDate || '');
+      if (dateComp !== 0) return dateComp;
+      const startTimeA = a.slot?.startTime || '';
+      const startTimeB = b.slot?.startTime || '';
+      if (startTimeA !== startTimeB) {
+        return startTimeA.localeCompare(startTimeB);
+      }
+      return (a.token || '').localeCompare(b.token || '');
+    });
+
+  const liquorUpcomingQueue = liquorQueue
+    .filter(b => b.bookingDate > todayStr)
+    .sort((a, b) => {
+      const dateComp = (a.bookingDate || '').localeCompare(b.bookingDate || '');
+      if (dateComp !== 0) return dateComp;
+      const startTimeA = a.slot?.startTime || '';
+      const startTimeB = b.slot?.startTime || '';
+      if (startTimeA !== startTimeB) {
+        return startTimeA.localeCompare(startTimeB);
+      }
+      return (a.token || '').localeCompare(b.token || '');
+    });
+
+  // 4. Summaries (Today)
+  const groceryToday = groceryTodayQueue.length;
+  const groceryWaiting = groceryTodayQueue.filter(b => b.status === 'BOOKED').length;
+  const groceryCheckedIn = groceryTodayQueue.filter(b => b.status === 'CHECKED_IN').length;
+  const groceryCompleted = groceryTodayQueue.filter(b => b.status === 'CHECKED_OUT').length;
+  const groceryCancelled = groceryTodayQueue.filter(b => b.status === 'CANCELLED').length;
+
+  const liquorToday = liquorTodayQueue.length;
+  const liquorWaiting = liquorTodayQueue.filter(b => b.status === 'BOOKED').length;
+  const liquorCheckedIn = liquorTodayQueue.filter(b => b.status === 'CHECKED_IN').length;
+  const liquorCompleted = liquorTodayQueue.filter(b => b.status === 'CHECKED_OUT').length;
+  const liquorCancelled = liquorTodayQueue.filter(b => b.status === 'CANCELLED').length;
+
+  // 5. Now Serving (Today)
+  const groceryServing = groceryTodayQueue.find(b => b.status === 'BOOKED') || null;
+  const liquorServing = liquorTodayQueue.find(b => b.status === 'BOOKED') || null;
+
+  // 6. Up Next (Up to 3 next waiting tokens)
+
+  // 7. Completed and Cancelled Today (Across both counters)
+  const completedToday = [...groceryTodayQueue, ...liquorTodayQueue]
+    .filter(b => b.status === 'CHECKED_OUT');
+
+  const cancelledToday = [...groceryTodayQueue, ...liquorTodayQueue]
+    .filter(b => b.status === 'CANCELLED');
 
   const getStatusChipStyles = (status: string) => {
     switch (status) {
@@ -275,29 +289,27 @@ export default function OperatorDashboardPage() {
   };
 
   const renderEmptyState = (message: string, description: string) => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6, px: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 3, px: 2 }}>
       <Box sx={{
-        p: 2,
+        p: 1.5,
         borderRadius: '50%',
         bgcolor: '#F3F4F6',
         color: '#9CA3AF',
-        mb: 2,
+        mb: 1.5,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <InboxIcon sx={{ fontSize: 48 }} />
+        <InboxIcon sx={{ fontSize: 36 }} />
       </Box>
-      <Typography variant="h6" color="#111827" fontWeight={800} align="center">
+      <Typography variant="subtitle2" color="#111827" fontWeight={800} align="center">
         {message}
       </Typography>
-      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 0.5, maxWidth: 360 }}>
+      <Typography variant="caption" color="text.secondary" align="center" sx={{ mt: 0.5, maxWidth: 300 }}>
         {description}
       </Typography>
     </Box>
   )
-
-  const currentList = activeTab === 'today' ? sortedTodayQueue : sortedUpcomingQueue;
 
   if (loading) {
     return (
@@ -313,9 +325,9 @@ export default function OperatorDashboardPage() {
 
         {/* Summary Cards Skeleton */}
         <Grid container spacing={2.5}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={i}>
-              <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+          {[1, 2].map((i) => (
+            <Grid size={{ xs: 12, md: 6 }} key={i}>
+              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
                 <CardContent sx={{ p: 2.5 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Skeleton variant="circular" width={44} height={44} />
@@ -330,34 +342,18 @@ export default function OperatorDashboardPage() {
           ))}
         </Grid>
 
-        {/* Now Serving Skeleton */}
-        <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', p: 3 }}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 7 }}>
-              <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1.5 }} />
-              <Skeleton variant="text" width="60%" height={60} sx={{ mb: 1.5 }} />
-              <Skeleton variant="text" width="45%" height={28} sx={{ mb: 1.5 }} />
-              <Skeleton variant="rectangular" width={160} height={36} sx={{ borderRadius: '8px' }} />
+        {/* Double Queues Skeleton */}
+        <Grid container spacing={3}>
+          {[1, 2].map((i) => (
+            <Grid size={{ xs: 12, md: 6 }} key={i}>
+              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', p: 3 }}>
+                <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1.5 }} />
+                <Skeleton variant="text" width="60%" height={60} sx={{ mb: 1.5 }} />
+                <Skeleton variant="rectangular" height={150} sx={{ borderRadius: '8px' }} />
+              </Card>
             </Grid>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Skeleton variant="text" width="50%" height={24} sx={{ mb: 2 }} />
-              <Stack spacing={1}>
-                <Skeleton variant="rectangular" height={48} sx={{ borderRadius: '8px' }} />
-                <Skeleton variant="rectangular" height={48} sx={{ borderRadius: '8px' }} />
-              </Stack>
-            </Grid>
-          </Grid>
-        </Card>
-
-        {/* Table Skeleton */}
-        <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', p: 3 }}>
-          <Skeleton variant="text" width="20%" height={32} sx={{ mb: 2 }} />
-          <Stack spacing={1.5}>
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: '8px' }} />
-            ))}
-          </Stack>
-        </Card>
+          ))}
+        </Grid>
       </Stack>
     )
   }
@@ -376,6 +372,7 @@ export default function OperatorDashboardPage() {
           </Box>
           <Button
             variant="outlined"
+            color="success"
             onClick={() => loadQueueAndStats(true)}
             sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
           >
@@ -389,415 +386,413 @@ export default function OperatorDashboardPage() {
           </Alert>
         )}
 
-        {/* FEATURE 3 — Live Statistics */}
-        <Grid container spacing={2.5}>
-          {/* Card 1: Today's Bookings */}
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.08)', color: '#2563EB', display: 'flex' }}>
-                    <PeopleIcon sx={{ fontSize: 22 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                      Today's Bookings
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
-                      {stats.total}
-                    </Typography>
-                  </Box>
-                </Stack>
+        {/* Top Row: Summaries */}
+        <Grid container spacing={3}>
+          {/* Grocery Summary */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+              <Box sx={{ bgcolor: '#E8F5E9', px: 3, py: 1.5, borderBottom: '1px solid #C8E6C9' }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#1B5E20">
+                  🥬 Grocery Counter Summary (Today)
+                </Typography>
+              </Box>
+              <CardContent sx={{ p: 2 }}>
+                <Grid container spacing={1}>
+                  {[
+                    ['Total Booked', groceryToday, '#1E293B'],
+                    ['Waiting', groceryWaiting, '#D97706'],
+                    ['Checked In', groceryCheckedIn, '#059669'],
+                    ['Completed', groceryCompleted, '#2563EB'],
+                    ['Cancelled', groceryCancelled, '#DC2626'],
+                  ].map(([label, val, color]) => (
+                    <Grid size={{ xs: 4, sm: 2.4 }} key={label as string}>
+                      <Box sx={{ textAlign: 'center', p: 1, bgcolor: '#F9FAFB', borderRadius: '8px' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ fontSize: '0.68rem' }}>
+                          {label}
+                        </Typography>
+                        <Typography variant="subtitle1" fontWeight={800} color={color as string} sx={{ mt: 0.2 }}>
+                          {val}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Card 2: Waiting */}
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.08)', color: '#D97706', display: 'flex' }}>
-                    <HourglassEmptyIcon sx={{ fontSize: 22 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                      Waiting
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
-                      {stats.waiting}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Card 3: Checked In */}
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.08)', color: '#059669', display: 'flex' }}>
-                    <CheckCircleIcon sx={{ fontSize: 22 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                      Checked In
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
-                      {stats.checkedIn}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Card 4: Completed */}
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(79, 70, 229, 0.08)', color: '#4F46E5', display: 'flex' }}>
-                    <ExitToAppIcon sx={{ fontSize: 22 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                      Completed
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
-                      {stats.completed}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Card 5: Cancelled */}
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', bgcolor: '#FFFFFF' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: 'rgba(220, 38, 38, 0.08)', color: '#DC2626', display: 'flex' }}>
-                    <CancelIcon sx={{ fontSize: 22 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                      Cancelled
-                    </Typography>
-                    <Typography variant="h4" fontWeight={800} color="#111827" sx={{ mt: 0.2 }}>
-                      {stats.cancelled}
-                    </Typography>
-                  </Box>
-                </Stack>
+          {/* Liquor Summary */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+              <Box sx={{ bgcolor: '#FFF3E0', px: 3, py: 1.5, borderBottom: '1px solid #FFE0B2' }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#E65100">
+                  🥃 Liquor Counter Summary (Today)
+                </Typography>
+              </Box>
+              <CardContent sx={{ p: 2 }}>
+                <Grid container spacing={1}>
+                  {[
+                    ['Total Booked', liquorToday, '#1E293B'],
+                    ['Waiting', liquorWaiting, '#D97706'],
+                    ['Checked In', liquorCheckedIn, '#059669'],
+                    ['Completed', liquorCompleted, '#2563EB'],
+                    ['Cancelled', liquorCancelled, '#DC2626'],
+                  ].map(([label, val, color]) => (
+                    <Grid size={{ xs: 4, sm: 2.4 }} key={label as string}>
+                      <Box sx={{ textAlign: 'center', p: 1, bgcolor: '#F9FAFB', borderRadius: '8px' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ fontSize: '0.68rem' }}>
+                          {label}
+                        </Typography>
+                        <Typography variant="subtitle1" fontWeight={800} color={color as string} sx={{ mt: 0.2 }}>
+                          {val}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
 
-        {/* FEATURE 4 & 5 — Now Serving & Up Next */}
-        <Card sx={{
-          borderRadius: '16px',
-          border: '1px solid #D1FAE5',
-          bgcolor: '#F0FDF4',
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02)',
-          p: { xs: 2.5, md: 3 },
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {/* Background decorative blob */}
-          <Box sx={{
-            position: 'absolute',
-            right: -30,
-            top: -30,
-            width: 160,
-            height: 160,
-            borderRadius: '50%',
-            bgcolor: 'rgba(74, 222, 128, 0.12)',
-            zIndex: 0
-          }} />
-
-          <Grid container spacing={3} alignItems="center" sx={{ position: 'relative', zIndex: 1 }}>
-            {/* Now Serving Segment */}
-            <Grid size={{ xs: 12, md: 7 }}>
-              <Stack spacing={2.5}>
-                <Box>
-                  <Box sx={{ px: 2, py: 0.5, borderRadius: '20px', bgcolor: '#D1FAE5', color: '#065F46', fontWeight: 800, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 0.5, letterSpacing: '0.05em' }}>
-                    <TrendingUpIcon sx={{ fontSize: 13 }} /> NOW SERVING
-                  </Box>
-                </Box>
+        {/* Middle Row: Split Queues */}
+        <Grid container spacing={3}>
+          {/* Grocery Queue Column */}
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Stack spacing={3}>
+              {/* NOW SERVING - GROCERY */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #A5D6A7', bgcolor: '#E8F5E9', p: 2.5, position: 'relative', overflow: 'hidden' }}>
+                <Box sx={{
+                  position: 'absolute',
+                  right: -20,
+                  top: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(74, 222, 128, 0.15)',
+                  zIndex: 0
+                }} />
                 
-                {currentServing ? (
-                  <>
-                    <Typography variant="h2" fontWeight={900} color="#065F46" sx={{ letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {currentServing.token}
-                    </Typography>
-                    
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                      <Box>
-                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
-                          Member Name
-                        </Typography>
-                        <Typography variant="body1" fontWeight={800} color="#111827">
-                          {currentServing.member?.fullName || 'Unknown Customer'}
-                        </Typography>
-                      </Box>
-                      
-                      <Box>
-                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
-                          Slot
-                        </Typography>
-                        <Typography variant="body1" fontWeight={800} color="#111827">
-                          {currentServing.slot?.label || 'N/A'}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
-                          Card Type
-                        </Typography>
-                        <Typography variant="body1" fontWeight={800} color="#111827">
-                          {currentServing.slot?.cardType || 'N/A'}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="#047857" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
-                          Booking Time
-                        </Typography>
-                        <Typography variant="body1" fontWeight={800} color="#111827">
-                          {currentServing.slot?.startTime ? `${formatTime12h(currentServing.slot.startTime)} – ${formatTime12h(currentServing.slot.endTime)}` : 'N/A'}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ pt: 1 }}>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        size="large"
-                        startIcon={<CheckCircleIcon />}
-                        sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, px: 4, py: 1.5, fontSize: '1rem', boxShadow: '0 4px 6px -1px rgba(74, 222, 128, 0.2)' }}
-                        onClick={() => handleCheckIn(currentServing.id)}
-                      >
-                        Check In Customer
-                      </Button>
-                    </Box>
-                  </>
-                ) : (
-                  <Box sx={{ py: 2 }}>
-                    <Typography variant="h5" fontWeight={800} color="#065F46">
-                      No customer waiting
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      All registered appointments for today are checked-in or completed.
-                    </Typography>
-                  </Box>
-                )}
-              </Stack>
-            </Grid>
-
-            {/* Up Next / Upcoming Segment */}
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Box sx={{
-                borderLeft: { xs: 'none', md: '1px solid #D1FAE5' },
-                pl: { xs: 0, md: 3 },
-                pt: { xs: 2.5, md: 0 },
-                borderTop: { xs: '1px solid #D1FAE5', md: 'none' }
-              }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#065F46" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 0.5, letterSpacing: '0.05em' }}>
-                  <ArrowForwardIcon sx={{ fontSize: 15 }} /> UP NEXT IN QUEUE
-                </Typography>
-                <Stack spacing={1.2}>
-                  {nextTokens.length > 0 ? (
-                    nextTokens.map((t, idx) => (
-                      <Box key={t.id} sx={{
-                        p: 1.5,
-                        borderRadius: '12px',
-                        bgcolor: '#FFFFFF',
-                        border: '1px solid #E5E7EB',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
-                      }}>
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                            {t.token}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                            {t.member?.fullName || 'Unknown Customer'}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="caption" color="#111827" fontWeight={700} display="block">
-                            {t.slot?.label}
-                          </Typography>
-                          <Chip
-                            label={`Position ${idx + 1}`}
-                            size="small"
-                            sx={{ height: 16, fontSize: '0.62rem', fontWeight: 700, bgcolor: '#F3F4F6', color: '#4B5563', mt: 0.2 }}
-                          />
-                        </Box>
-                      </Box>
-                    ))
-                  ) : (
-                    <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'rgba(255,255,255,0.5)', borderRadius: '12px', border: '1px dashed #D1FAE5' }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        No upcoming waiting customers.
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Typography variant="caption" fontWeight={800} color="#1B5E20" sx={{ letterSpacing: '0.05em', display: 'block', mb: 1.5 }}>
+                    🥬 GROCERY COUNTER — NOW SERVING
+                  </Typography>
+                  {groceryServing ? (
+                    <Stack spacing={2}>
+                      <Typography variant="h2" fontWeight={900} color="#1B5E20" sx={{ lineHeight: 1 }}>
+                        {groceryServing.token}
                       </Typography>
-                    </Box>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="#1B5E20" fontWeight={600} display="block">Customer Name</Typography>
+                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{groceryServing.member?.fullName || 'Unknown'}</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="#1B5E20" fontWeight={600} display="block">Time Slot</Typography>
+                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{groceryServing.slot?.label || 'N/A'}</Typography>
+                        </Grid>
+                      </Grid>
+                      <Box sx={{ pt: 1 }}>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="medium"
+                          startIcon={<CheckCircleIcon />}
+                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+                          onClick={() => handleCheckIn(groceryServing.id)}
+                        >
+                          Check In Customer
+                        </Button>
+                      </Box>
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, fontStyle: 'italic' }}>
+                      No customer waiting at Grocery counter.
+                    </Typography>
                   )}
-                </Stack>
-              </Box>
-            </Grid>
+                </Box>
+              </Card>
+
+              {/* LIVE QUEUE - GROCERY */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+                <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={800} color="#111827">
+                    🥬 Grocery Live Queue ({groceryTodayQueue.length})
+                  </Typography>
+                  <Tabs
+                    value={groceryTab}
+                    onChange={(_, val) => setGroceryTab(val)}
+                    textColor="primary"
+                    indicatorColor="primary"
+                    sx={{ minHeight: 32, '& .MuiTab-root': { py: 0.5, minHeight: 32, fontSize: '0.8rem', fontWeight: 800, textTransform: 'none' } }}
+                  >
+                    <Tab value="today" label="Today" />
+                    <Tab value="upcoming" label="Upcoming" />
+                  </Tabs>
+                </Box>
+                <TableContainer sx={{ maxHeight: 300 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Token</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Customer</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Slot/Date</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB', textAlign: 'center' }}>Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(groceryTab === 'today' ? groceryTodayQueue : groceryUpcomingQueue).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                            {renderEmptyState(
+                              "No Grocery Bookings Found",
+                              groceryTab === 'today' ? "There are no bookings in the grocery queue for today." : "No upcoming grocery bookings registered."
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (groceryTab === 'today' ? groceryTodayQueue : groceryUpcomingQueue).map((booking) => (
+                          <TableRow key={booking.id} hover>
+                            <TableCell sx={{ fontWeight: 800, color: '#1B5E20' }}>{booking.token}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={700} color="#111827">{booking.member?.fullName || 'Unknown'}</Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">{booking.member?.mobileNumber || ''}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              {groceryTab === 'today' ? booking.slot?.label : `${booking.bookingDate} (${booking.slot?.label})`}
+                            </TableCell>
+                            <TableCell>
+                              <Chip label={booking.status} size="small" sx={{ ...getStatusChipStyles(booking.status), fontSize: '0.65rem', height: 20 }} />
+                            </TableCell>
+                            <TableCell>
+                              <Stack direction="row" spacing={0.5} justifyContent="center">
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="success"
+                                  disabled={booking.status !== 'BOOKED' || groceryTab === 'upcoming'}
+                                  onClick={() => handleCheckIn(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  In
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  disabled={booking.status !== 'CHECKED_IN' || groceryTab === 'upcoming'}
+                                  onClick={() => handleCheckOut(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  Out
+                                </Button>
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  disabled={booking.status === 'CHECKED_OUT' || booking.status === 'CANCELLED'}
+                                  onClick={() => handleCancel(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, textTransform: 'none', minWidth: 0, fontWeight: 500 }}
+                                >
+                                  Cancel
+                                </Button>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Card>
+            </Stack>
           </Grid>
-        </Card>
 
-        {/* Live Queue Table Card with Tabs */}
-        <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
-          <CardContent sx={{ p: 3 }}>
-            
-            {/* FEATURE 1 & 2 Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-              <Tabs 
-                value={activeTab} 
-                onChange={(_, val) => setActiveTab(val)}
-                textColor="primary"
-                indicatorColor="primary"
-                sx={{
-                  '& .MuiTab-root': {
-                    textTransform: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.95rem',
-                  }
-                }}
-              >
-                <Tab value="today" label={`Today's Queue (${sortedTodayQueue.length})`} />
-                <Tab value="upcoming" label={`Upcoming Bookings (${sortedUpcomingQueue.length})`} />
-              </Tabs>
-            </Box>
+          {/* Liquor Queue Column */}
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Stack spacing={3}>
+              {/* NOW SERVING - LIQUOR */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #FFCC80', bgcolor: '#FFF3E0', p: 2.5, position: 'relative', overflow: 'hidden' }}>
+                <Box sx={{
+                  position: 'absolute',
+                  right: -20,
+                  top: -20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(255, 152, 0, 0.12)',
+                  zIndex: 0
+                }} />
 
-            <Box sx={{ border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
-              <TableContainer sx={{ maxHeight: 440 }}>
-                <Table stickyHeader size="medium">
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Typography variant="caption" fontWeight={800} color="#E65100" sx={{ letterSpacing: '0.05em', display: 'block', mb: 1.5 }}>
+                    🥃 LIQUOR COUNTER — NOW SERVING
+                  </Typography>
+                  {liquorServing ? (
+                    <Stack spacing={2}>
+                      <Typography variant="h2" fontWeight={900} color="#E65100" sx={{ lineHeight: 1 }}>
+                        {liquorServing.token}
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="#E65100" fontWeight={600} display="block">Customer Name</Typography>
+                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{liquorServing.member?.fullName || 'Unknown'}</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="#E65100" fontWeight={600} display="block">Time Slot</Typography>
+                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{liquorServing.slot?.label || 'N/A'}</Typography>
+                        </Grid>
+                      </Grid>
+                      <Box sx={{ pt: 1 }}>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="medium"
+                          startIcon={<CheckCircleIcon />}
+                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+                          onClick={() => handleCheckIn(liquorServing.id)}
+                        >
+                          Check In Customer
+                        </Button>
+                      </Box>
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, fontStyle: 'italic' }}>
+                      No customer waiting at Liquor counter.
+                    </Typography>
+                  )}
+                </Box>
+              </Card>
+
+              {/* LIVE QUEUE - LIQUOR */}
+              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+                <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={800} color="#111827">
+                    🥃 Liquor Live Queue ({liquorTodayQueue.length})
+                  </Typography>
+                  <Tabs
+                    value={liquorTab}
+                    onChange={(_, val) => setLiquorTab(val)}
+                    textColor="secondary"
+                    indicatorColor="secondary"
+                    sx={{ minHeight: 32, '& .MuiTab-root': { py: 0.5, minHeight: 32, fontSize: '0.8rem', fontWeight: 800, textTransform: 'none' } }}
+                  >
+                    <Tab value="today" label="Today" />
+                    <Tab value="upcoming" label="Upcoming" />
+                  </Tabs>
+                </Box>
+                <TableContainer sx={{ maxHeight: 300 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Token</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Customer</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Slot/Date</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB', textAlign: 'center' }}>Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(liquorTab === 'today' ? liquorTodayQueue : liquorUpcomingQueue).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                            {renderEmptyState(
+                              "No Liquor Bookings Found",
+                              liquorTab === 'today' ? "There are no bookings in the liquor queue for today." : "No upcoming liquor bookings registered."
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (liquorTab === 'today' ? liquorTodayQueue : liquorUpcomingQueue).map((booking) => (
+                          <TableRow key={booking.id} hover>
+                            <TableCell sx={{ fontWeight: 800, color: '#E65100' }}>{booking.token}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={700} color="#111827">{booking.member?.fullName || 'Unknown'}</Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">{booking.member?.mobileNumber || ''}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              {liquorTab === 'today' ? booking.slot?.label : `${booking.bookingDate} (${booking.slot?.label})`}
+                            </TableCell>
+                            <TableCell>
+                              <Chip label={booking.status} size="small" sx={{ ...getStatusChipStyles(booking.status), fontSize: '0.65rem', height: 20 }} />
+                            </TableCell>
+                            <TableCell>
+                              <Stack direction="row" spacing={0.5} justifyContent="center">
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="success"
+                                  disabled={booking.status !== 'BOOKED' || liquorTab === 'upcoming'}
+                                  onClick={() => handleCheckIn(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  In
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  disabled={booking.status !== 'CHECKED_IN' || liquorTab === 'upcoming'}
+                                  onClick={() => handleCheckOut(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  Out
+                                </Button>
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  disabled={booking.status === 'CHECKED_OUT' || booking.status === 'CANCELLED'}
+                                  onClick={() => handleCancel(booking.id)}
+                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, textTransform: 'none', minWidth: 0, fontWeight: 500 }}
+                                >
+                                  Cancel
+                                </Button>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Card>
+            </Stack>
+          </Grid>
+        </Grid>
+
+        {/* Bottom Row: Completed, Cancelled, Search Directory */}
+        <Grid container spacing={3}>
+          {/* Completed Today */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#111827">
+                  ✅ Completed Today ({completedToday.length})
+                </Typography>
+              </Box>
+              <TableContainer sx={{ maxHeight: 250 }}>
+                <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Token</TableCell>
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: activeTab === 'upcoming' ? '20%' : '25%' }}>Customer</TableCell>
-                      {activeTab === 'upcoming' && (
-                        <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Booking Date</TableCell>
-                      )}
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '25%' }}>Time Slot & Type</TableCell>
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '15%' }}>Status</TableCell>
-                      <TableCell sx={{ bgcolor: '#F9FAFB', fontWeight: 700, color: '#4B5563', width: '20%', textAlign: 'center' }}>Actions</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Token</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Customer</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Type</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {currentList.length === 0 ? (
+                    {completedToday.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={activeTab === 'upcoming' ? 6 : 5} align="center" sx={{ py: 8 }}>
-                          {activeTab === 'today' ? (
-                            renderEmptyState(
-                              "No bookings scheduled for today.",
-                              "There are currently no active bookings in the queue for today."
-                            )
-                          ) : (
-                            renderEmptyState(
-                              "No upcoming bookings scheduled.",
-                              "There are no future bookings registered in the system."
-                            )
-                          )}
+                        <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                          No completed bookings yet today.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      currentList.map((booking) => (
-                        <TableRow key={booking.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                          <TableCell sx={{ fontWeight: 800, color: '#111827', fontSize: '1.05rem' }}>
-                            {booking.token}
-                          </TableCell>
-                          <TableCell>
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight={700} color="#111827">
-                                {booking.member?.fullName || 'Unknown Customer'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                                {booking.member?.mobileNumber || 'N/A'}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          {activeTab === 'upcoming' && (
-                            <TableCell>
-                              <Chip
-                                icon={<CalendarMonthIcon sx={{ fontSize: '0.9rem !important' }} />}
-                                label={booking.bookingDate}
-                                size="small"
-                                sx={{ bgcolor: '#F3F4F6', color: '#1F2937', fontWeight: 700, borderRadius: '8px' }}
-                              />
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <Box>
-                              <Typography variant="body2" fontWeight={600} color="#374151">
-                                {booking.slot?.label ? formatSlotLabel(booking.slot.label) : 'N/A'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase' }}>
-                                {booking.slot?.cardType || 'N/A'}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={booking.status}
-                              size="small"
-                              sx={{
-                                ...getStatusChipStyles(booking.status),
-                                borderRadius: '9999px',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                height: 22,
-                                px: 0.5
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Stack direction="row" spacing={1} justifyContent="center">
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="success"
-                                disabled={booking.status !== 'BOOKED' || activeTab === 'upcoming'}
-                                onClick={() => handleCheckIn(booking.id)}
-                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5 }}
-                              >
-                                Check In
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                                disabled={booking.status !== 'CHECKED_IN' || activeTab === 'upcoming'}
-                                onClick={() => handleCheckOut(booking.id)}
-                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', px: 1.5 }}
-                              >
-                                Check Out
-                              </Button>
-                              <Button
-                                size="small"
-                                color="error"
-                                variant="text"
-                                disabled={
-                                  booking.status === 'CHECKED_OUT' ||
-                                  booking.status === 'CANCELLED'
-                                }
-                                onClick={() => handleCancel(booking.id)}
-                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem' }}
-                              >
-                                Cancel
-                              </Button>
-                            </Stack>
+                      completedToday.map((b) => (
+                        <TableRow key={b.id} hover>
+                          <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{b.token}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>{b.member?.fullName}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>
+                            <Chip label={b.slot?.cardType} size="small" variant="outlined" color={b.slot?.cardType === 'GROCERY' ? 'success' : 'warning'} sx={{ fontSize: '0.65rem', height: 18 }} />
                           </TableCell>
                         </TableRow>
                       ))
@@ -805,70 +800,115 @@ export default function OperatorDashboardPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-            </Box>
-          </CardContent>
-        </Card>
+            </Card>
+          </Grid>
 
-        {/* FEATURE 6 — Search Booking Section */}
-        <Card sx={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight={800} color="#111827" sx={{ mb: 2 }}>
-              Search Booking Directory
-            </Typography>
+          {/* Cancelled Today */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#111827">
+                  ❌ Cancelled Today ({cancelledToday.length})
+                </Typography>
+              </Box>
+              <TableContainer sx={{ maxHeight: 250 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Token</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Customer</TableCell>
+                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Type</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {cancelledToday.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                          No cancelled bookings today.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      cancelledToday.map((b) => (
+                        <TableRow key={b.id} hover>
+                          <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{b.token}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>{b.member?.fullName}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>
+                            <Chip label={b.slot?.cardType} size="small" variant="outlined" color={b.slot?.cardType === 'GROCERY' ? 'success' : 'warning'} sx={{ fontSize: '0.65rem', height: 18 }} />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Card>
+          </Grid>
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                fullWidth
-                size="medium"
-                label="Token / Mobile / Card Number"
-                placeholder="Enter token, mobile number or grocery/liquor card number..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
-                  if (searchError) setSearchError('')
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleSearch()
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '12px',
-                  }
-                }}
-              />
-              <Stack direction="row" spacing={1.5} sx={{ height: 56 }}>
-                <Button
-                  variant="contained"
-                  onClick={handleSearch}
-                  startIcon={<SearchIcon />}
-                  sx={{ px: 4, borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
-                >
-                  Search
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setOpenScanner(true)}
-                  startIcon={<QrCodeScannerIcon />}
-                  sx={{ px: 3, borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
-                >
-                  Scan QR
-                </Button>
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
+          {/* Search Booking Directory / Recent Activity */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
+                <Typography variant="subtitle2" fontWeight={800} color="#111827">
+                  🔍 Search & Scan Directory
+                </Typography>
+              </Box>
+              <CardContent sx={{ p: 2 }}>
+                <Stack spacing={1.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search booking"
+                    placeholder="Token / Mobile / Card Number..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value)
+                      if (searchError) setSearchError('')
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleSearch()
+                    }}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={handleSearch}
+                      startIcon={<SearchIcon />}
+                      size="small"
+                      color="success"
+                      sx={{ textTransform: 'none', fontWeight: 600, height: 36 }}
+                    >
+                      Search
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => setOpenScanner(true)}
+                      startIcon={<QrCodeScannerIcon />}
+                      size="small"
+                      color="success"
+                      sx={{ textTransform: 'none', fontWeight: 600, height: 36 }}
+                    >
+                      Scan QR
+                    </Button>
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
         {/* Search Result display */}
         {searchResult && (
-          <Card sx={{ borderRadius: '16px', border: '1.5px solid #2E7D32', boxShadow: '0 8px 16px rgba(46, 125, 50, 0.05)', overflow: 'hidden' }}>
-            <Box sx={{ bgcolor: 'rgba(46, 125, 50, 0.04)', px: 3, py: 2, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Card sx={{ borderRadius: '12px', border: '1.5px solid #2E7D32', boxShadow: '0 8px 16px rgba(46, 125, 50, 0.05)', overflow: 'hidden' }}>
+            <Box sx={{ bgcolor: 'rgba(46, 125, 50, 0.04)', px: 3, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 1 }}>
               <SearchIcon sx={{ color: '#2E7D32' }} />
-              <Typography variant="subtitle1" fontWeight={800} color="#2E7D32">
+              <Typography variant="subtitle2" fontWeight={800} color="#2E7D32">
                 Booking Search Result Found
               </Typography>
             </Box>
-            <CardContent sx={{ p: 3 }}>
-              <Grid container spacing={2}>
+            <CardContent sx={{ p: 2.5 }}>
+              <Grid container spacing={1.5}>
                 {[
                   ['Name', searchResult.memberName],
                   ['Mobile', searchResult.mobileNumber],
@@ -879,19 +919,19 @@ export default function OperatorDashboardPage() {
                   ['Booking Type', searchResult.bookingType],
                 ].map(([label, value]) => (
                   <Grid size={{ xs: 12, sm: 4, md: 3 }} key={label}>
-                    <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                    <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
                         {label}
                       </Typography>
-                      <Typography variant="body1" fontWeight={700} color="#111827">
+                      <Typography variant="body2" fontWeight={700} color="#111827">
                         {value}
                       </Typography>
                     </Box>
                   </Grid>
                 ))}
                 <Grid size={{ xs: 12, sm: 4, md: 3 }}>
-                  <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                  <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
                       Status
                     </Typography>
                     <Chip
@@ -900,23 +940,23 @@ export default function OperatorDashboardPage() {
                       sx={{
                         ...getStatusChipStyles(searchResult.status),
                         borderRadius: '9999px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
                         alignSelf: 'flex-start',
-                        height: 24
+                        height: 22
                       }}
                     />
                   </Box>
                 </Grid>
               </Grid>
 
-              <Stack direction="row" spacing={1.5} mt={3}>
+              <Stack direction="row" spacing={1.5} mt={2.5}>
                 <Button
                   variant="contained"
                   color="success"
                   disabled={searchResult.status !== 'BOOKED'}
                   onClick={() => handleCheckIn(searchResult.bookingId)}
-                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 3 }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
                 >
                   Check In
                 </Button>
@@ -924,7 +964,7 @@ export default function OperatorDashboardPage() {
                   variant="outlined"
                   disabled={searchResult.status !== 'CHECKED_IN'}
                   onClick={() => handleCheckOut(searchResult.bookingId)}
-                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 3 }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
                 >
                   Check Out
                 </Button>
@@ -935,7 +975,7 @@ export default function OperatorDashboardPage() {
                     searchResult.status === 'CHECKED_OUT' || searchResult.status === 'CANCELLED'
                   }
                   onClick={() => handleCancel(searchResult.bookingId)}
-                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 3 }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
                 >
                   Cancel Booking
                 </Button>
@@ -945,14 +985,14 @@ export default function OperatorDashboardPage() {
         )}
 
         {searchError && (
-          <Card sx={{ borderRadius: '16px', border: '1.5px dashed #EF4444', p: 3, textAlign: 'center', bgcolor: '#FEF2F2' }}>
+          <Card sx={{ borderRadius: '12px', border: '1.5px dashed #EF4444', p: 3, textAlign: 'center', bgcolor: '#FEF2F2' }}>
             <Box sx={{ color: '#EF4444', mb: 1, display: 'flex', justifyContent: 'center' }}>
               <CancelIcon sx={{ fontSize: 36 }} />
             </Box>
-            <Typography variant="subtitle1" fontWeight={800} color="#991B1B">
+            <Typography variant="subtitle2" fontWeight={800} color="#991B1B">
               No Booking Found
             </Typography>
-            <Typography variant="body2" color="#B91C1C" sx={{ mt: 0.5 }}>
+            <Typography variant="caption" color="#B91C1C" sx={{ mt: 0.5, display: 'block' }}>
               We couldn't find any booking matching your query. Please verify the credentials or try searching again.
             </Typography>
           </Card>
@@ -965,10 +1005,10 @@ export default function OperatorDashboardPage() {
         fullWidth
         maxWidth="sm"
         PaperProps={{
-          sx: { borderRadius: '16px', p: 1 }
+          sx: { borderRadius: '12px', p: 1 }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, color: '#111827' }}>Scan QR Code</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: '#111827', fontSize: '1.1rem' }}>Scan QR Code</DialogTitle>
         <DialogContent>
           <QrScanner
             onScan={async (token) => {

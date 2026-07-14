@@ -257,6 +257,10 @@ export default function CustomerBookSlotPage() {
     }
   }
 
+  const filteredSlots = useMemo(() => {
+    return slots.filter((slot) => slot.cardType === cardType)
+  }, [slots, cardType])
+
   return (
     <Box>
       <Stack spacing={2}>
@@ -464,12 +468,12 @@ export default function CustomerBookSlotPage() {
 
             {loadingSlots && <LinearProgress color="success" sx={{ height: 4, borderRadius: 6 }} />}
 
-            {!loadingSlots && cardType && slots.length === 0 && (
+            {!loadingSlots && cardType && filteredSlots.length === 0 && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>No active slots are available for this card type and date.</Alert>
             )}
 
-            <Grid container spacing={2} sx={{ mt: slots.length ? 0 : 1 }}>
-              {slots.map((slot) => {
+            <Grid container spacing={2} sx={{ mt: filteredSlots.length ? 0 : 1 }}>
+              {filteredSlots.map((slot) => {
                 const remaining = getRemaining(slot)
                 const full = remaining <= 0
                 const selected = selectedSlot?.id === slot.id
