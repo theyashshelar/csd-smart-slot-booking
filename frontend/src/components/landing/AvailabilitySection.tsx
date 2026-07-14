@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import Inventory2Rounded from '@mui/icons-material/Inventory2Rounded'
@@ -38,13 +38,32 @@ function getDisplayDate(dateObj: Date) {
 
 export default function AvailabilitySection({ data, totals, loading }: AvailabilitySectionProps) {
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'GROCERY' | 'LIQUOR'>('ALL')
-  const slots = data?.availableSlots ?? []
+  const [currentTime, setCurrentTime] = useState(new Date())
 
-  const allCount = slots.length
-  const groceryCount = slots.filter((s) => s.cardType === 'GROCERY').length
-  const liquorCount = slots.filter((s) => s.cardType === 'LIQUOR').length
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [])
 
-  const filteredSlots = slots.filter((s) => {
+  const originalSlots = data?.availableSlots ?? []
+
+  // Filter slots for today's date using the 30-minute booking cutoff (truly live)
+  const bookableSlots = originalSlots.filter((s) => {
+    const [hours, minutes] = s.startTime.split(':').map(Number)
+    const slotDateTime = new Date(currentTime)
+    slotDateTime.setHours(hours, minutes, 0, 0)
+    
+    const limitTime = new Date(currentTime.getTime() + 30 * 60 * 1000)
+    return slotDateTime.getTime() >= limitTime.getTime()
+  })
+
+  const allCount = bookableSlots.length
+  const groceryCount = bookableSlots.filter((s) => s.cardType === 'GROCERY').length
+  const liquorCount = bookableSlots.filter((s) => s.cardType === 'LIQUOR').length
+
+  const filteredSlots = bookableSlots.filter((s) => {
     if (activeFilter === 'ALL') return true
     return s.cardType === activeFilter
   })
@@ -65,7 +84,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
               Available Slots
             </Typography>
             <Typography variant="h6" sx={{ color: '#2E7D32', fontWeight: 700 }}>
-              {getDisplayDate(new Date())}
+              {getDisplayDate(currentTime)}
             </Typography>
             <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.7 }}>
               Guests can view availability before logging in.
@@ -80,7 +99,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
 
         {loading && <LinearProgress color="success" sx={{ borderRadius: 99, mb: 3 }} />}
 
-        {!loading && slots.length === 0 && (
+        {!loading && originalSlots.length === 0 && (
           <Card>
             <CardContent sx={{ p: 4 }}>
               <Typography variant="h6" fontWeight={850}>
@@ -93,8 +112,23 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Card>
         )}
 
+        {!loading && originalSlots.length > 0 && bookableSlots.length === 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Card sx={{ maxWidth: 600, width: '100%', textAlign: 'center', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
+              <CardContent sx={{ p: 5 }}>
+                <Typography variant="h5" sx={{ color: '#102319', fontWeight: 850, mb: 1.5 }}>
+                  Today's booking has ended.
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: 16 }}>
+                  Please visit tomorrow for new slot availability.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
         {/* Segmented Filter */}
-        {!loading && slots.length > 0 && (
+        {!loading && bookableSlots.length > 0 && (
           <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-start' }}>
             <Stack
               direction="row"
@@ -145,85 +179,87 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Box>
         )}
 
-        <Grid container spacing={2.5}>
-          <AnimatePresence mode="popLayout">
-            {filteredSlots.map((slot) => {
-              const remaining = getRemaining(slot)
-              const percent = slot.capacity > 0 ? Math.min((slot.bookedCount / slot.capacity) * 100, 100) : 0
-              const full = remaining <= 0
+        {bookableSlots.length > 0 && (
+          <Grid container spacing={2.5}>
+            <AnimatePresence mode="popLayout">
+              {filteredSlots.map((slot) => {
+                const remaining = getRemaining(slot)
+                const percent = slot.capacity > 0 ? Math.min((slot.bookedCount / slot.capacity) * 100, 100) : 0
+                const full = remaining <= 0
 
-              return (
-                <Grid key={slot.id} size={{ xs: 12, md: 6, lg: 4 }}>
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ height: '100%' }}
-                  >
-                    <Card sx={{ height: '100%', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
-                      <CardContent sx={{ p: 3 }}>
-                        <Stack spacing={2.5}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                            <Box>
-                              <Typography variant="overline" color="text.secondary" fontWeight={850}>
-                                {slot.cardType}
-                              </Typography>
-                              <Typography variant="h5" fontWeight={850}>
-                                {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
-                              </Typography>
-                            </Box>
+                return (
+                  <Grid key={slot.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ height: '100%' }}
+                    >
+                      <Card sx={{ height: '100%', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
+                        <CardContent sx={{ p: 3 }}>
+                          <Stack spacing={2.5}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                              <Box>
+                                <Typography variant="overline" color="text.secondary" fontWeight={850}>
+                                  {slot.cardType}
+                                </Typography>
+                                <Typography variant="h5" fontWeight={850}>
+                                  {formatTime12h(slot.startTime)} – {formatTime12h(slot.endTime)}
+                                </Typography>
+                              </Box>
 
-                            <Chip
-                              size="small"
-                              color={full ? 'error' : remaining <= 5 ? 'warning' : 'success'}
-                              label={full ? 'Full' : 'Available'}
-                            />
-                          </Stack>
-
-                          <Stack spacing={1}>
-                            <Stack direction="row" justifyContent="space-between">
-                              <Typography variant="body2" color="text.secondary">
-                                {formatSlotLabel(slot.label)}
-                              </Typography>
-                              <Typography variant="body2" fontWeight={850}>
-                                {remaining} remaining
-                              </Typography>
+                              <Chip
+                                size="small"
+                                color={full ? 'error' : remaining <= 5 ? 'warning' : 'success'}
+                                label={full ? 'Full' : 'Available'}
+                              />
                             </Stack>
-                            <LinearProgress
-                              variant="determinate"
-                              value={percent}
-                              color={full ? 'error' : 'success'}
-                              sx={{ height: 9, borderRadius: 99, bgcolor: '#EEF4EF' }}
-                            />
-                          </Stack>
 
-                          <Grid container spacing={1}>
-                            {[
-                              ['Capacity', slot.capacity],
-                              ['Booked', slot.bookedCount],
-                              ['Available', remaining],
-                            ].map(([label, value]) => (
-                              <Grid key={label} size={4}>
-                                <Box sx={{ p: 1.3, borderRadius: 3, bgcolor: '#F8FAF8', border: '1px solid rgba(46,125,50,0.10)' }}>
-                                  <Typography fontWeight={850}>{value}</Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {label}
-                                  </Typography>
-                                </Box>
-                              </Grid>
-                            ))}
-                          </Grid>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </Grid>
-              )
-            })}
-          </AnimatePresence>
-        </Grid>
+                            <Stack spacing={1}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatSlotLabel(slot.label)}
+                                </Typography>
+                                <Typography variant="body2" fontWeight={850}>
+                                  {remaining} remaining
+                                </Typography>
+                              </Stack>
+                              <LinearProgress
+                                variant="determinate"
+                                value={percent}
+                                color={full ? 'error' : 'success'}
+                                sx={{ height: 9, borderRadius: 99, bgcolor: '#EEF4EF' }}
+                              />
+                            </Stack>
+
+                            <Grid container spacing={1}>
+                              {[
+                                ['Capacity', slot.capacity],
+                                ['Booked', slot.bookedCount],
+                                ['Available', remaining],
+                              ].map(([label, value]) => (
+                                <Grid key={label} size={4}>
+                                  <Box sx={{ p: 1.3, borderRadius: 3, bgcolor: '#F8FAF8', border: '1px solid rgba(46,125,50,0.10)' }}>
+                                    <Typography fontWeight={850}>{value}</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {label}
+                                    </Typography>
+                                  </Box>
+                                </Grid>
+                              ))}
+                            </Grid>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  </Grid>
+                )
+              })}
+            </AnimatePresence>
+          </Grid>
+        )}
       </Box>
     </Box>
   )
