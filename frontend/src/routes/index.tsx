@@ -12,6 +12,8 @@ import SlotsPage from '../pages/admin/SlotsPage'
 import ReportsPage from '../pages/admin/ReportsPage'
 import SettingsPage from '../pages/admin/SettingsPage'
 import OperatorDashboardPage from '../pages/operator/OperatorDashboardPage'
+import GroceryCounterPage from '../pages/operator/GroceryCounterPage'
+import LiquorCounterPage from '../pages/operator/LiquorCounterPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import CustomerLoginPage from '../pages/customer/CustomerLoginPage.tsx'
 import CustomerDashboardPage from '../pages/customer/CustomerDashboardPage'
@@ -44,6 +46,8 @@ export const router = createBrowserRouter([
       { path: '/admin/reports', element: <ReportsPage /> },
       { path: '/admin/settings', element: <SettingsPage /> },
       { path: '/operator/dashboard', element: <OperatorDashboardPage /> },
+      { path: '/operator/grocery', element: <GroceryCounterPage /> },
+      { path: '/operator/liquor', element: <LiquorCounterPage /> },
       { path: '/customer/dashboard', element: <CustomerDashboardPage /> },
       { path: '/customer/profile', element: <ProfilePage /> },
       { path: '/customer/history', element: <BookingHistoryPage /> },

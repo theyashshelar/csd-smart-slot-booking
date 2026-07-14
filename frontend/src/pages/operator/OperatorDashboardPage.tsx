@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Alert,
   Box,
@@ -8,82 +8,73 @@ import {
   Chip,
   Grid,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TextField,
-  TableRow,
   Typography,
   Skeleton,
-  Tabs,
-  Tab,
 } from '@mui/material'
-
-import {
-  CheckCircle as CheckCircleIcon,
-  Search as SearchIcon,
-  QrCodeScanner as QrCodeScannerIcon,
-  Inbox as InboxIcon,
-  Cancel as CancelIcon,
-} from '@mui/icons-material'
-
+import { useNavigate } from 'react-router-dom'
 import {
   getQueue,
-  searchBooking,
-  checkIn,
-  checkOut,
-  cancelBooking,
-  getBookingByToken,
+  getSettings,
 } from '../../services/api'
+import type { OperatorBooking } from '../../types/api'
+import {
+  LocalGroceryStoreRounded,
+  LocalBarRounded,
+  ArrowForwardRounded,
+  RefreshRounded,
+  ScheduleRounded,
+} from '@mui/icons-material'
 
-import type {
-  OperatorBooking,
-  OperatorSearchResponse,
-} from '../../types/api'
-
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-
-import QrScanner from "./QrScanner";
-import { formatSlotLabel } from '../../utils/timeFormatter'
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return null
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const ampm = match[3].toUpperCase()
+  if (ampm === 'PM' && hours < 12) hours += 12
+  if (ampm === 'AM' && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
 
 export default function OperatorDashboardPage() {
-
+  const navigate = useNavigate()
   const [queue, setQueue] = useState<OperatorBooking[]>([])
   const [loading, setLoading] = useState(true)
-  const [openScanner, setOpenScanner] = useState(false)
-  const [search, setSearch] = useState('')
-  const [searchResult, setSearchResult] = useState<OperatorSearchResponse | null>(null)
   const [error, setError] = useState('')
-  const [searchError, setSearchError] = useState('')
+  const [settings, setSettings] = useState<Record<string, string>>({
+    openingTime: '09:00 AM',
+    closingTime: '05:00 PM',
+    lunchBreakStart: '01:00 PM',
+    lunchBreakEnd: '02:00 PM',
+    weeklyHolidays: 'Sunday',
+    specialHolidays: '',
+  })
 
-  // Separate tab states for independent queue navigation
-  const [groceryTab, setGroceryTab] = useState<'today' | 'upcoming'>('today')
-  const [liquorTab, setLiquorTab] = useState<'today' | 'upcoming'>('today')
-
-  const getTodayString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const date = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${date}`;
-  };
-
-  const loadQueueAndStats = async (showSkeleton = false) => {
+  const loadData = async (showSkeleton = false) => {
     if (showSkeleton) {
       setLoading(true)
     }
     setError('')
     try {
-      const response = await getQueue()
-      setQueue(response.data || [])
+      const [queueRes, settingsRes] = await Promise.all([
+        getQueue(),
+        getSettings(),
+      ])
+      
+      setQueue(queueRes.data || [])
+      
+      if (settingsRes.data && Array.isArray(settingsRes.data)) {
+        const mapped = settingsRes.data.reduce((acc: any, item: any) => {
+          acc[item.key] = item.value
+          return acc
+        }, {})
+        setSettings((prev) => ({ ...prev, ...mapped }))
+      }
     } catch (e: any) {
       setError(
-          e?.response?.data?.message ||
-          'Unable to load queue and statistics.'
+        e?.response?.data?.message ||
+        'Unable to load canteen operational overview.'
       )
     } finally {
       if (showSkeleton) {
@@ -93,953 +84,332 @@ export default function OperatorDashboardPage() {
   }
 
   useEffect(() => {
-    void loadQueueAndStats(true)
+    void loadData(true)
 
     const interval = setInterval(() => {
-      void loadQueueAndStats(false)
+      void loadData(false)
     }, 30000)
 
     return () => clearInterval(interval)
   }, [])
 
-  const handleSearch = async () => {
-    if (!search.trim()) return
+  const todayStr = useMemo(() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const date = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${date}`
+  }, [])
 
-    setSearchError('')
-    setSearchResult(null)
+  // Live canteen operational status calculation
+  const statusInfo = useMemo(() => {
+    const now = new Date()
+    const todayDayName = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' })
+    const todayKolkata = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
-    try {
-      const response = await searchBooking({
-        token: search,
-        mobileNumber: search,
-        cardNumber: search,
-      })
-      if (response.data) {
-        setSearchResult(response.data)
-      } else {
-        setSearchError('No booking found.')
-      }
-    } catch (e: any) {
-      setSearchError('No booking found.')
+    const weeklyHolidays = settings.weeklyHolidays
+      ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : ['Sunday']
+    
+    const specialHolidays = settings.specialHolidays
+      ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
+      : []
+
+    if (weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)) {
+      return { label: 'Holiday', color: '#EF6C00', dot: '🟠' }
     }
-  }
 
-  const handleCheckIn = async (bookingId: number) => {
-    try {
-      await checkIn(bookingId)
-      await loadQueueAndStats(false)
-      if (searchResult?.bookingId === bookingId) {
-        await handleSearch()
-      }
-    } catch (e: any) {
-      setError(
-          e?.response?.data?.message ||
-          'Unable to check in.'
-      )
+    const opStr = settings.openingTime || '09:00 AM'
+    const clStr = settings.closingTime || '05:00 PM'
+    const lhStartStr = settings.lunchBreakStart || '01:00 PM'
+    const lhEndStr = settings.lunchBreakEnd || '02:00 PM'
+
+    const opMin = parseTimeToMinutes(opStr) ?? (9 * 60)
+    const clMin = parseTimeToMinutes(clStr) ?? (17 * 60)
+    const lhStartMin = parseTimeToMinutes(lhStartStr) ?? (13 * 60)
+    const lhEndMin = parseTimeToMinutes(lhEndStr) ?? (14 * 60)
+
+    const currentKolkataTimeStr = now.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    })
+    const curMin = parseTimeToMinutes(currentKolkataTimeStr) ?? 0
+
+    if (curMin < opMin) {
+      return { label: 'Canteen Closed', color: '#D32F2F', dot: '🔴' }
+    } else if (curMin >= opMin && curMin < lhStartMin) {
+      return { label: 'Canteen Open', color: '#2E7D32', dot: '🟢' }
+    } else if (curMin >= lhStartMin && curMin < lhEndMin) {
+      return { label: 'Lunch Break', color: '#F59E0B', dot: '🟡' }
+    } else if (curMin >= lhEndMin && curMin < clMin) {
+      return { label: 'Canteen Open', color: '#2E7D32', dot: '🟢' }
+    } else {
+      return { label: 'Canteen Closed', color: '#D32F2F', dot: '🔴' }
     }
-  }
+  }, [settings])
 
-  const handleCheckOut = async (bookingId: number) => {
-    try {
-      await checkOut(bookingId)
-      await loadQueueAndStats(false)
-      if (searchResult?.bookingId === bookingId) {
-        await handleSearch()
-      }
-    } catch (e: any) {
-      setError(
-          e?.response?.data?.message ||
-          'Unable to check out.'
-      )
-    }
-  }
+  // Split and filter data
+  const todayBookings = useMemo(() => queue.filter(b => b.bookingDate === todayStr), [queue, todayStr])
 
-  const handleCancel = async (bookingId: number) => {
-    try {
-      await cancelBooking(bookingId)
-      await loadQueueAndStats(false)
-      if (searchResult?.bookingId === bookingId) {
-        await handleSearch()
-      }
-    } catch (e: any) {
-      setError(
-          e?.response?.data?.message ||
-          'Unable to cancel booking.'
-      )
-    }
-  }
+  // Overall Counts
+  const overallTotal = todayBookings.length
+  const overallWaiting = todayBookings.filter(b => b.status === 'BOOKED').length
+  const overallCheckedIn = todayBookings.filter(b => b.status === 'CHECKED_IN').length
+  const overallCheckedOut = todayBookings.filter(b => b.status === 'CHECKED_OUT').length
+  const overallCancelled = todayBookings.filter(b => b.status === 'CANCELLED').length
 
-  const todayStr = getTodayString()
+  // Grocery Split
+  const groceryToday = useMemo(() => todayBookings.filter(b => b.slot?.cardType === 'GROCERY'), [todayBookings])
+  const groceryWaiting = useMemo(() => groceryToday.filter(b => b.status === 'BOOKED'), [groceryToday])
+  const groceryServingToken = useMemo(() => {
+    const active = groceryWaiting[0]
+    return active ? active.token : 'None'
+  }, [groceryWaiting])
 
-  // 1. Partition queue by cardType
-  const groceryQueue = queue.filter(b => b.slot?.cardType === 'GROCERY')
-  const liquorQueue = queue.filter(b => b.slot?.cardType === 'LIQUOR')
-
-  // 2. Today's sorted queues
-  const groceryTodayQueue = groceryQueue
-    .filter(b => b.bookingDate === todayStr)
-    .sort((a, b) => {
-      const startTimeA = a.slot?.startTime || '';
-      const startTimeB = b.slot?.startTime || '';
-      if (startTimeA !== startTimeB) {
-        return startTimeA.localeCompare(startTimeB);
-      }
-      return (a.token || '').localeCompare(b.token || '');
-    });
-
-  const liquorTodayQueue = liquorQueue
-    .filter(b => b.bookingDate === todayStr)
-    .sort((a, b) => {
-      const startTimeA = a.slot?.startTime || '';
-      const startTimeB = b.slot?.startTime || '';
-      if (startTimeA !== startTimeB) {
-        return startTimeA.localeCompare(startTimeB);
-      }
-      return (a.token || '').localeCompare(b.token || '');
-    });
-
-  // 3. Upcoming sorted queues
-  const groceryUpcomingQueue = groceryQueue
-    .filter(b => b.bookingDate > todayStr)
-    .sort((a, b) => {
-      const dateComp = (a.bookingDate || '').localeCompare(b.bookingDate || '');
-      if (dateComp !== 0) return dateComp;
-      const startTimeA = a.slot?.startTime || '';
-      const startTimeB = b.slot?.startTime || '';
-      if (startTimeA !== startTimeB) {
-        return startTimeA.localeCompare(startTimeB);
-      }
-      return (a.token || '').localeCompare(b.token || '');
-    });
-
-  const liquorUpcomingQueue = liquorQueue
-    .filter(b => b.bookingDate > todayStr)
-    .sort((a, b) => {
-      const dateComp = (a.bookingDate || '').localeCompare(b.bookingDate || '');
-      if (dateComp !== 0) return dateComp;
-      const startTimeA = a.slot?.startTime || '';
-      const startTimeB = b.slot?.startTime || '';
-      if (startTimeA !== startTimeB) {
-        return startTimeA.localeCompare(startTimeB);
-      }
-      return (a.token || '').localeCompare(b.token || '');
-    });
-
-  // 4. Summaries (Today)
-  const groceryToday = groceryTodayQueue.length;
-  const groceryWaiting = groceryTodayQueue.filter(b => b.status === 'BOOKED').length;
-  const groceryCheckedIn = groceryTodayQueue.filter(b => b.status === 'CHECKED_IN').length;
-  const groceryCompleted = groceryTodayQueue.filter(b => b.status === 'CHECKED_OUT').length;
-  const groceryCancelled = groceryTodayQueue.filter(b => b.status === 'CANCELLED').length;
-
-  const liquorToday = liquorTodayQueue.length;
-  const liquorWaiting = liquorTodayQueue.filter(b => b.status === 'BOOKED').length;
-  const liquorCheckedIn = liquorTodayQueue.filter(b => b.status === 'CHECKED_IN').length;
-  const liquorCompleted = liquorTodayQueue.filter(b => b.status === 'CHECKED_OUT').length;
-  const liquorCancelled = liquorTodayQueue.filter(b => b.status === 'CANCELLED').length;
-
-  // 5. Now Serving (Today)
-  const groceryServing = groceryTodayQueue.find(b => b.status === 'BOOKED') || null;
-  const liquorServing = liquorTodayQueue.find(b => b.status === 'BOOKED') || null;
-
-  // 6. Up Next (Up to 3 next waiting tokens)
-
-  // 7. Completed and Cancelled Today (Across both counters)
-  const completedToday = [...groceryTodayQueue, ...liquorTodayQueue]
-    .filter(b => b.status === 'CHECKED_OUT');
-
-  const cancelledToday = [...groceryTodayQueue, ...liquorTodayQueue]
-    .filter(b => b.status === 'CANCELLED');
-
-  const getStatusChipStyles = (status: string) => {
-    switch (status) {
-      case 'BOOKED':
-        return {
-          bgcolor: '#FEF3C7',
-          color: '#B45309',
-          border: '1px solid #FCD34D',
-          borderRadius: '9999px',
-        };
-      case 'CHECKED_IN':
-        return {
-          bgcolor: '#D1FAE5',
-          color: '#047857',
-          border: '1px solid #6EE7B7',
-          borderRadius: '9999px',
-        };
-      case 'CHECKED_OUT':
-        return {
-          bgcolor: '#DBEAFE',
-          color: '#1D4ED8',
-          border: '1px solid #93C5FD',
-          borderRadius: '9999px',
-        };
-      case 'CANCELLED':
-        return {
-          bgcolor: '#FEE2E2',
-          color: '#B91C1C',
-          border: '1px solid #FCA5A5',
-          borderRadius: '9999px',
-        };
-      default:
-        return {
-          borderRadius: '9999px',
-        };
-    }
-  };
-
-  const renderEmptyState = (message: string, description: string) => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 3, px: 2 }}>
-      <Box sx={{
-        p: 1.5,
-        borderRadius: '50%',
-        bgcolor: '#F3F4F6',
-        color: '#9CA3AF',
-        mb: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <InboxIcon sx={{ fontSize: 36 }} />
-      </Box>
-      <Typography variant="subtitle2" color="#111827" fontWeight={800} align="center">
-        {message}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" align="center" sx={{ mt: 0.5, maxWidth: 300 }}>
-        {description}
-      </Typography>
-    </Box>
-  )
+  // Liquor Split
+  const liquorToday = useMemo(() => todayBookings.filter(b => b.slot?.cardType === 'LIQUOR'), [todayBookings])
+  const liquorWaiting = useMemo(() => liquorToday.filter(b => b.status === 'BOOKED'), [liquorToday])
+  const liquorServingToken = useMemo(() => {
+    const active = liquorWaiting[0]
+    return active ? active.token : 'None'
+  }, [liquorWaiting])
 
   if (loading) {
     return (
       <Stack spacing={3}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', mb: 0.5 }}>
-            Queue Operations Control
+            Operator Console Dashboard
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Loading live queue statistics and customer flow...
+            Loading counter overviews...
           </Typography>
         </Box>
-
-        {/* Summary Cards Skeleton */}
-        <Grid container spacing={2.5}>
-          {[1, 2].map((i) => (
-            <Grid size={{ xs: 12, md: 6 }} key={i}>
-              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-                <CardContent sx={{ p: 2.5 }}>
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <Skeleton variant="circular" width={44} height={44} />
-                    <Box sx={{ flex: 1 }}>
-                      <Skeleton variant="text" width="60%" height={18} />
-                      <Skeleton variant="text" width="40%" height={28} />
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Double Queues Skeleton */}
+        <Skeleton variant="rectangular" height={150} sx={{ borderRadius: '12px' }} />
         <Grid container spacing={3}>
-          {[1, 2].map((i) => (
-            <Grid size={{ xs: 12, md: 6 }} key={i}>
-              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', p: 3 }}>
-                <Skeleton variant="text" width="30%" height={24} sx={{ mb: 1.5 }} />
-                <Skeleton variant="text" width="60%" height={60} sx={{ mb: 1.5 }} />
-                <Skeleton variant="rectangular" height={150} sx={{ borderRadius: '8px' }} />
-              </Card>
-            </Grid>
-          ))}
+          <Grid item xs={12} md={6}>
+            <Skeleton variant="rectangular" height={220} sx={{ borderRadius: '12px' }} />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Skeleton variant="rectangular" height={220} sx={{ borderRadius: '12px' }} />
+          </Grid>
         </Grid>
       </Stack>
     )
   }
 
   return (
-    <>
-      <Stack spacing={3}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', mb: 0.5 }}>
-              Queue Operations Control
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Process real-time member check-ins, scans, and queue states.
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            color="success"
-            onClick={() => loadQueueAndStats(true)}
-            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
-          >
-            Refresh Queue
-          </Button>
+    <Stack spacing={3.5}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', mb: 0.5 }}>
+            Queue Operations Dashboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            A bird's-eye overview of live counters and schedule status.
+          </Typography>
         </Box>
+        <Button
+          variant="outlined"
+          color="success"
+          startIcon={<RefreshRounded />}
+          onClick={() => loadData(true)}
+          sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
+        >
+          Refresh Overview
+        </Button>
+      </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ borderRadius: '12px' }} onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ borderRadius: '12px' }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
 
-        {/* Top Row: Summaries */}
-        <Grid container spacing={3}>
-          {/* Grocery Summary */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-              <Box sx={{ bgcolor: '#E8F5E9', px: 3, py: 1.5, borderBottom: '1px solid #C8E6C9' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#1B5E20">
-                  🥬 Grocery Counter Summary (Today)
-                </Typography>
-              </Box>
-              <CardContent sx={{ p: 2 }}>
-                <Grid container spacing={1}>
-                  {[
-                    ['Total Booked', groceryToday, '#1E293B'],
-                    ['Waiting', groceryWaiting, '#D97706'],
-                    ['Checked In', groceryCheckedIn, '#059669'],
-                    ['Completed', groceryCompleted, '#2563EB'],
-                    ['Cancelled', groceryCancelled, '#DC2626'],
-                  ].map(([label, val, color]) => (
-                    <Grid size={{ xs: 4, sm: 2.4 }} key={label as string}>
-                      <Box sx={{ textAlign: 'center', p: 1, bgcolor: '#F9FAFB', borderRadius: '8px' }}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ fontSize: '0.68rem' }}>
-                          {label}
-                        </Typography>
-                        <Typography variant="subtitle1" fontWeight={800} color={color as string} sx={{ mt: 0.2 }}>
-                          {val}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Liquor Summary */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-              <Box sx={{ bgcolor: '#FFF3E0', px: 3, py: 1.5, borderBottom: '1px solid #FFE0B2' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#E65100">
-                  🥃 Liquor Counter Summary (Today)
-                </Typography>
-              </Box>
-              <CardContent sx={{ p: 2 }}>
-                <Grid container spacing={1}>
-                  {[
-                    ['Total Booked', liquorToday, '#1E293B'],
-                    ['Waiting', liquorWaiting, '#D97706'],
-                    ['Checked In', liquorCheckedIn, '#059669'],
-                    ['Completed', liquorCompleted, '#2563EB'],
-                    ['Cancelled', liquorCancelled, '#DC2626'],
-                  ].map(([label, val, color]) => (
-                    <Grid size={{ xs: 4, sm: 2.4 }} key={label as string}>
-                      <Box sx={{ textAlign: 'center', p: 1, bgcolor: '#F9FAFB', borderRadius: '8px' }}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ fontSize: '0.68rem' }}>
-                          {label}
-                        </Typography>
-                        <Typography variant="subtitle1" fontWeight={800} color={color as string} sx={{ mt: 0.2 }}>
-                          {val}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Middle Row: Split Queues */}
-        <Grid container spacing={3}>
-          {/* Grocery Queue Column */}
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Stack spacing={3}>
-              {/* NOW SERVING - GROCERY */}
-              <Card sx={{ borderRadius: '12px', border: '1px solid #A5D6A7', bgcolor: '#E8F5E9', p: 2.5, position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{
-                  position: 'absolute',
-                  right: -20,
-                  top: -20,
-                  width: 100,
-                  height: 100,
-                  borderRadius: '50%',
-                  bgcolor: 'rgba(74, 222, 128, 0.15)',
-                  zIndex: 0
-                }} />
-                
-                <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <Typography variant="caption" fontWeight={800} color="#1B5E20" sx={{ letterSpacing: '0.05em', display: 'block', mb: 1.5 }}>
-                    🥬 GROCERY COUNTER — NOW SERVING
+      {/* Today's Overall Summary Card */}
+      <Card id="overall-summary-card" sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+        <Box sx={{ bgcolor: '#F8FAFC', px: 3, py: 1.8, borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="subtitle2" fontWeight={800} color="#0F172A">
+            📈 Canteen Cumulative Performance (Today)
+          </Typography>
+          <Chip
+            icon={<ScheduleRounded />}
+            label={`Current Schedule: ${settings.openingTime} - ${settings.closingTime}`}
+            size="small"
+            sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: '#F1F5F9', border: '1px solid #E2E8F0' }}
+          />
+        </Box>
+        <CardContent sx={{ p: 2.5 }}>
+          <Grid container spacing={2}>
+            {[
+              ['Cumulative Bookings', overallTotal, '#1E293B'],
+              ['Waiting in Queue', overallWaiting, '#D97706'],
+              ['Checked In', overallCheckedIn, '#059669'],
+              ['Completed Checkout', overallCheckedOut, '#2563EB'],
+              ['Total Cancelled', overallCancelled, '#DC2626'],
+            ].map(([label, val, color]) => (
+              <Grid item xs={6} md={2.4} key={label as string}>
+                <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#F9FAFB', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={750} display="block" sx={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.5 }}>
+                    {label}
                   </Typography>
-                  {groceryServing ? (
-                    <Stack spacing={2}>
-                      <Typography variant="h2" fontWeight={900} color="#1B5E20" sx={{ lineHeight: 1 }}>
-                        {groceryServing.token}
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="#1B5E20" fontWeight={600} display="block">Customer Name</Typography>
-                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{groceryServing.member?.fullName || 'Unknown'}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="#1B5E20" fontWeight={600} display="block">Time Slot</Typography>
-                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{groceryServing.slot?.label || 'N/A'}</Typography>
-                        </Grid>
-                      </Grid>
-                      <Box sx={{ pt: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          size="medium"
-                          startIcon={<CheckCircleIcon />}
-                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
-                          onClick={() => handleCheckIn(groceryServing.id)}
-                        >
-                          Check In Customer
-                        </Button>
-                      </Box>
-                    </Stack>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, fontStyle: 'italic' }}>
-                      No customer waiting at Grocery counter.
-                    </Typography>
-                  )}
-                </Box>
-              </Card>
-
-              {/* LIVE QUEUE - GROCERY */}
-              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-                <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                    🥬 Grocery Live Queue ({groceryTodayQueue.length})
+                  <Typography variant="h5" fontWeight={900} color={color as string}>
+                    {val}
                   </Typography>
-                  <Tabs
-                    value={groceryTab}
-                    onChange={(_, val) => setGroceryTab(val)}
-                    textColor="primary"
-                    indicatorColor="primary"
-                    sx={{ minHeight: 32, '& .MuiTab-root': { py: 0.5, minHeight: 32, fontSize: '0.8rem', fontWeight: 800, textTransform: 'none' } }}
-                  >
-                    <Tab value="today" label="Today" />
-                    <Tab value="upcoming" label="Upcoming" />
-                  </Tabs>
                 </Box>
-                <TableContainer sx={{ maxHeight: 300 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Token</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Customer</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Slot/Date</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Status</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB', textAlign: 'center' }}>Action</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {(groceryTab === 'today' ? groceryTodayQueue : groceryUpcomingQueue).length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-                            {renderEmptyState(
-                              "No Grocery Bookings Found",
-                              groceryTab === 'today' ? "There are no bookings in the grocery queue for today." : "No upcoming grocery bookings registered."
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        (groceryTab === 'today' ? groceryTodayQueue : groceryUpcomingQueue).map((booking) => (
-                          <TableRow key={booking.id} hover>
-                            <TableCell sx={{ fontWeight: 800, color: '#1B5E20' }}>{booking.token}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={700} color="#111827">{booking.member?.fullName || 'Unknown'}</Typography>
-                              <Typography variant="caption" color="text.secondary" display="block">{booking.member?.mobileNumber || ''}</Typography>
-                            </TableCell>
-                            <TableCell>
-                              {groceryTab === 'today' ? booking.slot?.label : `${booking.bookingDate} (${booking.slot?.label})`}
-                            </TableCell>
-                            <TableCell>
-                              <Chip label={booking.status} size="small" sx={{ ...getStatusChipStyles(booking.status), fontSize: '0.65rem', height: 20 }} />
-                            </TableCell>
-                            <TableCell>
-                              <Stack direction="row" spacing={0.5} justifyContent="center">
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  color="success"
-                                  disabled={booking.status !== 'BOOKED' || groceryTab === 'upcoming'}
-                                  onClick={() => handleCheckIn(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
-                                >
-                                  In
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                  disabled={booking.status !== 'CHECKED_IN' || groceryTab === 'upcoming'}
-                                  onClick={() => handleCheckOut(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
-                                >
-                                  Out
-                                </Button>
-                                <Button
-                                  size="small"
-                                  color="error"
-                                  disabled={booking.status === 'CHECKED_OUT' || booking.status === 'CANCELLED'}
-                                  onClick={() => handleCancel(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, textTransform: 'none', minWidth: 0, fontWeight: 500 }}
-                                >
-                                  Cancel
-                                </Button>
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Card>
-            </Stack>
+              </Grid>
+            ))}
           </Grid>
+        </CardContent>
+      </Card>
 
-          {/* Liquor Queue Column */}
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Stack spacing={3}>
-              {/* NOW SERVING - LIQUOR */}
-              <Card sx={{ borderRadius: '12px', border: '1px solid #FFCC80', bgcolor: '#FFF3E0', p: 2.5, position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{
-                  position: 'absolute',
-                  right: -20,
-                  top: -20,
-                  width: 100,
-                  height: 100,
-                  borderRadius: '50%',
-                  bgcolor: 'rgba(255, 152, 0, 0.12)',
-                  zIndex: 0
-                }} />
-
-                <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <Typography variant="caption" fontWeight={800} color="#E65100" sx={{ letterSpacing: '0.05em', display: 'block', mb: 1.5 }}>
-                    🥃 LIQUOR COUNTER — NOW SERVING
-                  </Typography>
-                  {liquorServing ? (
-                    <Stack spacing={2}>
-                      <Typography variant="h2" fontWeight={900} color="#E65100" sx={{ lineHeight: 1 }}>
-                        {liquorServing.token}
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="#E65100" fontWeight={600} display="block">Customer Name</Typography>
-                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{liquorServing.member?.fullName || 'Unknown'}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="#E65100" fontWeight={600} display="block">Time Slot</Typography>
-                          <Typography variant="subtitle2" fontWeight={800} color="#111827">{liquorServing.slot?.label || 'N/A'}</Typography>
-                        </Grid>
-                      </Grid>
-                      <Box sx={{ pt: 1 }}>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          size="medium"
-                          startIcon={<CheckCircleIcon />}
-                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
-                          onClick={() => handleCheckIn(liquorServing.id)}
-                        >
-                          Check In Customer
-                        </Button>
-                      </Box>
-                    </Stack>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, fontStyle: 'italic' }}>
-                      No customer waiting at Liquor counter.
-                    </Typography>
-                  )}
-                </Box>
-              </Card>
-
-              {/* LIVE QUEUE - LIQUOR */}
-              <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-                <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                    🥃 Liquor Live Queue ({liquorTodayQueue.length})
-                  </Typography>
-                  <Tabs
-                    value={liquorTab}
-                    onChange={(_, val) => setLiquorTab(val)}
-                    textColor="secondary"
-                    indicatorColor="secondary"
-                    sx={{ minHeight: 32, '& .MuiTab-root': { py: 0.5, minHeight: 32, fontSize: '0.8rem', fontWeight: 800, textTransform: 'none' } }}
-                  >
-                    <Tab value="today" label="Today" />
-                    <Tab value="upcoming" label="Upcoming" />
-                  </Tabs>
-                </Box>
-                <TableContainer sx={{ maxHeight: 300 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Token</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Customer</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Slot/Date</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB' }}>Status</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#F9FAFB', textAlign: 'center' }}>Action</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {(liquorTab === 'today' ? liquorTodayQueue : liquorUpcomingQueue).length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-                            {renderEmptyState(
-                              "No Liquor Bookings Found",
-                              liquorTab === 'today' ? "There are no bookings in the liquor queue for today." : "No upcoming liquor bookings registered."
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        (liquorTab === 'today' ? liquorTodayQueue : liquorUpcomingQueue).map((booking) => (
-                          <TableRow key={booking.id} hover>
-                            <TableCell sx={{ fontWeight: 800, color: '#E65100' }}>{booking.token}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={700} color="#111827">{booking.member?.fullName || 'Unknown'}</Typography>
-                              <Typography variant="caption" color="text.secondary" display="block">{booking.member?.mobileNumber || ''}</Typography>
-                            </TableCell>
-                            <TableCell>
-                              {liquorTab === 'today' ? booking.slot?.label : `${booking.bookingDate} (${booking.slot?.label})`}
-                            </TableCell>
-                            <TableCell>
-                              <Chip label={booking.status} size="small" sx={{ ...getStatusChipStyles(booking.status), fontSize: '0.65rem', height: 20 }} />
-                            </TableCell>
-                            <TableCell>
-                              <Stack direction="row" spacing={0.5} justifyContent="center">
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  color="success"
-                                  disabled={booking.status !== 'BOOKED' || liquorTab === 'upcoming'}
-                                  onClick={() => handleCheckIn(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
-                                >
-                                  In
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                  disabled={booking.status !== 'CHECKED_IN' || liquorTab === 'upcoming'}
-                                  onClick={() => handleCheckOut(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, minWidth: 44, textTransform: 'none', fontWeight: 600 }}
-                                >
-                                  Out
-                                </Button>
-                                <Button
-                                  size="small"
-                                  color="error"
-                                  disabled={booking.status === 'CHECKED_OUT' || booking.status === 'CANCELLED'}
-                                  onClick={() => handleCancel(booking.id)}
-                                  sx={{ fontSize: '0.7rem', px: 1, py: 0.2, textTransform: 'none', minWidth: 0, fontWeight: 500 }}
-                                >
-                                  Cancel
-                                </Button>
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Card>
-            </Stack>
-          </Grid>
-        </Grid>
-
-        {/* Bottom Row: Completed, Cancelled, Search Directory */}
-        <Grid container spacing={3}>
-          {/* Completed Today */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                  ✅ Completed Today ({completedToday.length})
-                </Typography>
-              </Box>
-              <TableContainer sx={{ maxHeight: 250 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Token</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Customer</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Type</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {completedToday.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8rem' }}>
-                          No completed bookings yet today.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      completedToday.map((b) => (
-                        <TableRow key={b.id} hover>
-                          <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{b.token}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>{b.member?.fullName}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>
-                            <Chip label={b.slot?.cardType} size="small" variant="outlined" color={b.slot?.cardType === 'GROCERY' ? 'success' : 'warning'} sx={{ fontSize: '0.65rem', height: 18 }} />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Card>
-          </Grid>
-
-          {/* Cancelled Today */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                  ❌ Cancelled Today ({cancelledToday.length})
-                </Typography>
-              </Box>
-              <TableContainer sx={{ maxHeight: 250 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Token</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Customer</TableCell>
-                      <TableCell sx={{ fontWeight: 700, bgcolor: '#FFFFFF' }}>Type</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {cancelledToday.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8rem' }}>
-                          No cancelled bookings today.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      cancelledToday.map((b) => (
-                        <TableRow key={b.id} hover>
-                          <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{b.token}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>{b.member?.fullName}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>
-                            <Chip label={b.slot?.cardType} size="small" variant="outlined" color={b.slot?.cardType === 'GROCERY' ? 'success' : 'warning'} sx={{ fontSize: '0.65rem', height: 18 }} />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Card>
-          </Grid>
-
-          {/* Search Booking Directory / Recent Activity */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Card sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
-              <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#111827">
-                  🔍 Search & Scan Directory
-                </Typography>
-              </Box>
-              <CardContent sx={{ p: 2 }}>
-                <Stack spacing={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Search booking"
-                    placeholder="Token / Mobile / Card Number..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value)
-                      if (searchError) setSearchError('')
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') void handleSearch()
-                    }}
-                  />
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={handleSearch}
-                      startIcon={<SearchIcon />}
-                      size="small"
-                      color="success"
-                      sx={{ textTransform: 'none', fontWeight: 600, height: 36 }}
-                    >
-                      Search
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={() => setOpenScanner(true)}
-                      startIcon={<QrCodeScannerIcon />}
-                      size="small"
-                      color="success"
-                      sx={{ textTransform: 'none', fontWeight: 600, height: 36 }}
-                    >
-                      Scan QR
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Search Result display */}
-        {searchResult && (
-          <Card sx={{ borderRadius: '12px', border: '1.5px solid #2E7D32', boxShadow: '0 8px 16px rgba(46, 125, 50, 0.05)', overflow: 'hidden' }}>
-            <Box sx={{ bgcolor: 'rgba(46, 125, 50, 0.04)', px: 3, py: 1.5, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SearchIcon sx={{ color: '#2E7D32' }} />
-              <Typography variant="subtitle2" fontWeight={800} color="#2E7D32">
-                Booking Search Result Found
+      {/* Counter Workspace Split Grid */}
+      <Grid container spacing={3}>
+        {/* Grocery Counter Status */}
+        <Grid item xs={12} md={6}>
+          <Card id="grocery-workspace-card" sx={{ borderRadius: '12px', border: '1px solid #C8E6C9', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ bgcolor: '#E8F5E9', px: 3, py: 2, borderBottom: '1px solid #C8E6C9', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <LocalGroceryStoreRounded sx={{ color: '#1B5E20' }} />
+              <Typography variant="subtitle1" fontWeight={855} color="#1B5E20">
+                Grocery Counter Workspace
               </Typography>
             </Box>
-            <CardContent sx={{ p: 2.5 }}>
-              <Grid container spacing={1.5}>
-                {[
-                  ['Name', searchResult.memberName],
-                  ['Mobile', searchResult.mobileNumber],
-                  ['Grocery Card', searchResult.groceryCardNumber || '-'],
-                  ['Liquor Card', searchResult.liquorCardNumber || '-'],
-                  ['Token', searchResult.token],
-                  ['Slot', formatSlotLabel(searchResult.slotLabel)],
-                  ['Booking Type', searchResult.bookingType],
-                ].map(([label, value]) => (
-                  <Grid size={{ xs: 12, sm: 4, md: 3 }} key={label}>
-                    <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
-                        {label}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700} color="#111827">
-                        {value}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
-                <Grid size={{ xs: 12, sm: 4, md: 3 }}>
-                  <Box sx={{ p: 1.2, borderRadius: '8px', bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ textTransform: 'uppercase', letterSpacing: '0.02em', mb: 0.2, fontSize: '0.68rem' }}>
-                      Status
-                    </Typography>
-                    <Chip
-                      label={searchResult.status}
-                      size="small"
-                      sx={{
-                        ...getStatusChipStyles(searchResult.status),
-                        borderRadius: '9999px',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        alignSelf: 'flex-start',
-                        height: 22
-                      }}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-
-              <Stack direction="row" spacing={1.5} mt={2.5}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  disabled={searchResult.status !== 'BOOKED'}
-                  onClick={() => handleCheckIn(searchResult.bookingId)}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
-                >
-                  Check In
-                </Button>
-                <Button
-                  variant="outlined"
-                  disabled={searchResult.status !== 'CHECKED_IN'}
-                  onClick={() => handleCheckOut(searchResult.bookingId)}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
-                >
-                  Check Out
-                </Button>
-                <Button
-                  color="error"
-                  variant="outlined"
-                  disabled={
-                    searchResult.status === 'CHECKED_OUT' || searchResult.status === 'CANCELLED'
-                  }
-                  onClick={() => handleCancel(searchResult.bookingId)}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 3 }}
-                >
-                  Cancel Booking
-                </Button>
+            <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 2.5 }}>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Operating Status</Typography>
+                  <Chip
+                    label={`${statusInfo.dot} ${statusInfo.label}`}
+                    sx={{
+                      bgcolor: statusInfo.label === 'Canteen Open' ? '#D1FAE5' : '#FFE4E6',
+                      color: statusInfo.label === 'Canteen Open' ? '#065F46' : '#991B1B',
+                      border: `1px solid ${statusInfo.label === 'Canteen Open' ? '#34D399' : '#F87171'}`,
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Now Serving Token</Typography>
+                  <Typography variant="subtitle1" fontWeight={900} color="#1B5E20">
+                    {groceryServingToken}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Customers Waiting</Typography>
+                  <Typography variant="subtitle1" fontWeight={900} color="#1E293B">
+                    {groceryWaiting.length}
+                  </Typography>
+                </Box>
               </Stack>
+              <Button
+                variant="contained"
+                color="success"
+                fullWidth
+                endIcon={<ArrowForwardRounded />}
+                onClick={() => navigate('/operator/grocery')}
+                sx={{ py: 1.2, borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+              >
+                Open Grocery Workspace
+              </Button>
             </CardContent>
           </Card>
-        )}
+        </Grid>
 
-        {searchError && (
-          <Card sx={{ borderRadius: '12px', border: '1.5px dashed #EF4444', p: 3, textAlign: 'center', bgcolor: '#FEF2F2' }}>
-            <Box sx={{ color: '#EF4444', mb: 1, display: 'flex', justifyContent: 'center' }}>
-              <CancelIcon sx={{ fontSize: 36 }} />
+        {/* Liquor Counter Status */}
+        <Grid item xs={12} md={6}>
+          <Card id="liquor-workspace-card" sx={{ borderRadius: '12px', border: '1px solid #FFE0B2', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ bgcolor: '#FFF3E0', px: 3, py: 2, borderBottom: '1px solid #FFE0B2', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <LocalBarRounded sx={{ color: '#E65100' }} />
+              <Typography variant="subtitle1" fontWeight={855} color="#E65100">
+                Liquor Counter Workspace
+              </Typography>
             </Box>
-            <Typography variant="subtitle2" fontWeight={800} color="#991B1B">
-              No Booking Found
-            </Typography>
-            <Typography variant="caption" color="#B91C1C" sx={{ mt: 0.5, display: 'block' }}>
-              We couldn't find any booking matching your query. Please verify the credentials or try searching again.
-            </Typography>
+            <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 2.5 }}>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Operating Status</Typography>
+                  <Chip
+                    label={`${statusInfo.dot} ${statusInfo.label}`}
+                    sx={{
+                      bgcolor: statusInfo.label === 'Canteen Open' ? '#D1FAE5' : '#FFE4E6',
+                      color: statusInfo.label === 'Canteen Open' ? '#065F46' : '#991B1B',
+                      border: `1px solid ${statusInfo.label === 'Canteen Open' ? '#34D399' : '#F87171'}`,
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Now Serving Token</Typography>
+                  <Typography variant="subtitle1" fontWeight={900} color="#E65100">
+                    {liquorServingToken}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={600}>Customers Waiting</Typography>
+                  <Typography variant="subtitle1" fontWeight={900} color="#1E293B">
+                    {liquorWaiting.length}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                endIcon={<ArrowForwardRounded />}
+                onClick={() => navigate('/operator/liquor')}
+                sx={{
+                  py: 1.2,
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  bgcolor: '#E65100',
+                  '&:hover': { bgcolor: '#BF360C' }
+                }}
+              >
+                Open Liquor Workspace
+              </Button>
+            </CardContent>
           </Card>
-        )}
-      </Stack>
+        </Grid>
+      </Grid>
 
-      <Dialog
-        open={openScanner}
-        onClose={() => setOpenScanner(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: { borderRadius: '12px', p: 1 }
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, color: '#111827', fontSize: '1.1rem' }}>Scan QR Code</DialogTitle>
-        <DialogContent>
-          <QrScanner
-            onScan={async (token) => {
-              try {
-                setOpenScanner(false)
-
-                const response = await getBookingByToken(token)
-                const booking = response.data
-
-                setSearch(booking.token)
-
-                setSearchResult({
-                  bookingId: booking.id,
-                  memberName: booking.member.fullName,
-                  mobileNumber: booking.member.mobileNumber,
-                  groceryCardNumber: booking.member.groceryCardNumber,
-                  liquorCardNumber: booking.member.liquorCardNumber,
-                  token: booking.token,
-                  slotLabel: booking.slot.label,
-                  status: booking.status,
-                  bookingType: booking.slot.cardType,
-                })
-
-                await loadQueueAndStats(false)
-              } catch {
-                setSearchError('No booking found.')
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
+      {/* Quick Actions Panel */}
+      <Card id="quick-actions-card" sx={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: 'none' }}>
+        <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #E5E7EB', bgcolor: '#F9FAFB' }}>
+          <Typography variant="subtitle2" fontWeight={800} color="#111827">
+            ⚡ Quick Shortcuts & Resource Links
+          </Typography>
+        </Box>
+        <CardContent sx={{ p: 2 }}>
+          <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="outlined"
+              color="success"
+              startIcon={<LocalGroceryStoreRounded />}
+              onClick={() => navigate('/operator/grocery')}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            >
+              Go to Grocery Counter
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<LocalBarRounded />}
+              onClick={() => navigate('/operator/liquor')}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', color: '#E65100', borderColor: '#E65100', '&:hover': { borderColor: '#E65100', bgcolor: 'rgba(230,81,0,0.04)' } }}
+            >
+              Go to Liquor Counter
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Stack>
   )
 }

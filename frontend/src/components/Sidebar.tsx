@@ -17,6 +17,8 @@ import {
     PersonRounded,
     HistoryRounded,
     LockRounded,
+    LocalGroceryStoreRounded,
+    LocalBarRounded,
 } from '@mui/icons-material'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { getRole } from '../services/auth'
@@ -31,6 +33,8 @@ const adminItems = [
 
 const operatorItems = [
     { label: 'Dashboard', to: '/operator/dashboard', icon: DashboardRounded },
+    { label: 'Grocery Counter', to: '/operator/grocery', icon: LocalGroceryStoreRounded },
+    { label: 'Liquor Counter', to: '/operator/liquor', icon: LocalBarRounded },
 ]
 
 const customerItems = [
