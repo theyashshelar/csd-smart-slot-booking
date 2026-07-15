@@ -19,7 +19,7 @@ spring:
   jackson:
     time-zone: Asia/Kolkata
     serialization:
-      write-dates-as-timestamps: false
+      WRITE_DATES_AS_TIMESTAMPS: false
 
   servlet:
     multipart:
