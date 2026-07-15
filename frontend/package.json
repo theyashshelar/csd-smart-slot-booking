@@ -19,6 +19,8 @@
     "dayjs": "^1.11.21",
     "framer-motion": "^12.42.2",
     "html5-qrcode": "^2.3.8",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.475.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.80.0",
