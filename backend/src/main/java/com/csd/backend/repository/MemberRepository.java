@@ -17,7 +17,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.id = :id")
     Optional<Member> findByIdWithLock(@Param("id") Long id);
 
-    @Query("SELECT m FROM Member m WHERE m.mobileNumber = :mobileNumber " +
+    @Query("SELECT m FROM Member m WHERE m.mobileNumber = :mobileNumber OR m.mobileNumber LIKE CONCAT(:mobileNumber, '_REJ_%') " +
            "ORDER BY CASE m.registrationStatus " +
            "  WHEN com.csd.backend.entity.RegistrationStatus.APPROVED THEN 1 " +
            "  WHEN com.csd.backend.entity.RegistrationStatus.PENDING THEN 2 " +

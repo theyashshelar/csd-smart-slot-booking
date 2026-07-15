@@ -119,6 +119,21 @@ function authenticateToken(req: any, res: any, next: any) {
   })
 }
 
+function cleanMember(m: any) {
+  if (!m) return m
+  const cleaned = { ...m }
+  if (cleaned.mobileNumber && cleaned.mobileNumber.includes('_REJ_')) {
+    cleaned.mobileNumber = cleaned.mobileNumber.split('_REJ_')[0]
+  }
+  if (cleaned.groceryCardNumber && cleaned.groceryCardNumber.includes('_REJ_')) {
+    cleaned.groceryCardNumber = cleaned.groceryCardNumber.split('_REJ_')[0]
+  }
+  if (cleaned.liquorCardNumber && cleaned.liquorCardNumber.includes('_REJ_')) {
+    cleaned.liquorCardNumber = cleaned.liquorCardNumber.split('_REJ_')[0]
+  }
+  return cleaned
+}
+
 // ==========================================
 // API ROUTES
 // ==========================================
@@ -224,7 +239,7 @@ app.post('/api/auth/operator/login', (req, res) => {
 
 app.post('/api/auth/customer/login', (req, res) => {
   const { username, password } = req.body // username here represents mobile number
-  const matchedMembers = members.filter(m => m.mobileNumber === username)
+  const matchedMembers = members.filter(m => m.mobileNumber === username || m.mobileNumber === `${username}_REJ_${m.id}`)
 
   if (matchedMembers.length === 0) {
     return res.status(401).json({ error: 'Unauthorized', message: 'Invalid mobile number or password.' })
@@ -372,11 +387,11 @@ app.get('/api/admin/members', (req, res) => {
     const query = q.toLowerCase()
     list = list.filter(m => m.fullName.toLowerCase().includes(query) || m.mobileNumber.includes(query))
   }
-  res.json(list)
+  res.json(list.map(cleanMember))
 })
 
 app.get('/api/admin/members/pending', (req, res) => {
-  res.json(members.filter(m => m.registrationStatus === 'PENDING'))
+  res.json(members.filter(m => m.registrationStatus === 'PENDING').map(cleanMember))
 })
 
 app.post('/api/admin/members', (req, res) => {
@@ -448,7 +463,7 @@ app.put('/api/admin/members/:id', (req, res) => {
     createdAt: new Date().toISOString()
   })
 
-  res.json(members[idx])
+  res.json(cleanMember(members[idx]))
 })
 
 app.delete('/api/admin/members/:id', (req, res) => {
@@ -481,7 +496,7 @@ app.put('/api/admin/members/:id/approve', (req, res) => {
     details: `Approved member ${members[idx].fullName}`,
     createdAt: new Date().toISOString()
   })
-  res.json(members[idx])
+  res.json(cleanMember(members[idx]))
 })
 
 app.put('/api/admin/members/:id/reject', (req, res) => {
@@ -489,7 +504,17 @@ app.put('/api/admin/members/:id/reject', (req, res) => {
   const idx = members.findIndex(m => m.id === id)
   if (idx === -1) return res.status(404).json({ error: 'Member not found' })
   
-  members[idx].registrationStatus = 'REJECTED'
+  const member = members[idx]
+  member.registrationStatus = 'REJECTED'
+  const suffix = `_REJ_${id}`
+  member.mobileNumber = member.mobileNumber + suffix
+  if (member.groceryCardNumber) {
+    member.groceryCardNumber = member.groceryCardNumber + suffix
+  }
+  if (member.liquorCardNumber) {
+    member.liquorCardNumber = member.liquorCardNumber + suffix
+  }
+
   auditLogs.push({
     id: auditLogs.length + 1,
     actor: 'admin',
@@ -497,7 +522,7 @@ app.put('/api/admin/members/:id/reject', (req, res) => {
     details: `Rejected member ${members[idx].fullName}`,
     createdAt: new Date().toISOString()
   })
-  res.json(members[idx])
+  res.json(cleanMember(members[idx]))
 })
 
 // 4. ADMIN - SLOTS CRUD & ACTIONS
@@ -956,15 +981,16 @@ app.get('/api/customer/profile/:memberId', (req, res) => {
   const m = members.find(mem => mem.id === memberId)
   if (!m) return res.status(404).json({ error: 'Member not found' })
 
+  const cleaned = cleanMember(m)
   res.json({
-    id: m.id,
-    fullName: m.fullName,
-    mobileNumber: m.mobileNumber,
-    dateOfBirth: m.dateOfBirth,
-    groceryCardNumber: m.groceryCardNumber || '',
-    liquorCardNumber: m.liquorCardNumber || '',
-    registrationStatus: m.registrationStatus,
-    registrationDate: m.registrationDate || null
+    id: cleaned.id,
+    fullName: cleaned.fullName,
+    mobileNumber: cleaned.mobileNumber,
+    dateOfBirth: cleaned.dateOfBirth,
+    groceryCardNumber: cleaned.groceryCardNumber || '',
+    liquorCardNumber: cleaned.liquorCardNumber || '',
+    registrationStatus: cleaned.registrationStatus,
+    registrationDate: cleaned.registrationDate || null
   })
 })
 

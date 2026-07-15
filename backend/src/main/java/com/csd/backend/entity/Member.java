@@ -21,7 +21,7 @@ public class Member {
     @Column(nullable = false)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 10)
+    @Column(nullable = false, unique = true, length = 50)
     private String mobileNumber;
 
     @Column(nullable = false)
@@ -48,5 +48,26 @@ public class Member {
 
     @Column(name = "registration_date")
     private java.time.LocalDateTime registrationDate;
+
+    public String getMobileNumber() {
+        if (mobileNumber != null && mobileNumber.contains("_REJ_")) {
+            return mobileNumber.split("_REJ_")[0];
+        }
+        return mobileNumber;
+    }
+
+    public String getGroceryCardNumber() {
+        if (groceryCardNumber != null && groceryCardNumber.contains("_REJ_")) {
+            return groceryCardNumber.split("_REJ_")[0];
+        }
+        return groceryCardNumber;
+    }
+
+    public String getLiquorCardNumber() {
+        if (liquorCardNumber != null && liquorCardNumber.contains("_REJ_")) {
+            return liquorCardNumber.split("_REJ_")[0];
+        }
+        return liquorCardNumber;
+    }
 
 }
