@@ -52,8 +52,13 @@ public class AuthService {
             throw new IllegalArgumentException("Mobile number must contain exactly 10 digits.");
         }
 
-        if (memberRepository.existsByMobileNumber(cleanedMobile)) {
-            throw new IllegalArgumentException("Mobile number is already registered.");
+        if (memberRepository.existsActiveByMobileNumber(cleanedMobile)) {
+            Member m = memberRepository.findByMobileNumber(cleanedMobile).orElse(null);
+            if (m != null && m.getRegistrationStatus() == RegistrationStatus.PENDING) {
+                throw new IllegalArgumentException("Your registration is already pending administrator approval. Please try again after your registration has been approved.");
+            } else {
+                throw new IllegalArgumentException("Mobile number is already registered.");
+            }
         }
 
         if (request.getGroceryCardNumber() != null
@@ -72,14 +77,14 @@ public class AuthService {
 
         if (request.getGroceryCardNumber() != null
                 && !request.getGroceryCardNumber().isBlank()
-                && memberRepository.existsByGroceryCardNumber(request.getGroceryCardNumber())) {
+                && memberRepository.existsActiveByGroceryCardNumber(request.getGroceryCardNumber())) {
 
             throw new IllegalArgumentException("Grocery card number is already registered.");
         }
 
         if (request.getLiquorCardNumber() != null
                 && !request.getLiquorCardNumber().isBlank()
-                && memberRepository.existsByLiquorCardNumber(request.getLiquorCardNumber())) {
+                && memberRepository.existsActiveByLiquorCardNumber(request.getLiquorCardNumber())) {
 
             throw new IllegalArgumentException("Liquor card number is already registered.");
         }
@@ -187,7 +192,7 @@ public class AuthService {
 
         if (member.getRegistrationStatus() == RegistrationStatus.REJECTED) {
             throw new ForbiddenException(
-                    "Your registration has been rejected. Please contact the administrator."
+                    "Your registration was rejected. Please register again."
             );
         }
 

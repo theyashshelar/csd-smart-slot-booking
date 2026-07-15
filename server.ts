@@ -132,9 +132,28 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ error: 'Please enter all required fields.' })
   }
 
-  const exists = members.find(m => m.mobileNumber === mobileNumber)
-  if (exists) {
-    return res.status(400).json({ error: 'Mobile number already registered.' })
+  const sameMobile = members.filter(m => m.mobileNumber === mobileNumber)
+  const activeMobile = sameMobile.find(m => m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED')
+  if (activeMobile) {
+    if (activeMobile.registrationStatus === 'PENDING') {
+      return res.status(400).json({ error: 'Your registration is already pending administrator approval. Please try again after your registration has been approved.' })
+    } else {
+      return res.status(400).json({ error: 'Mobile number already registered.' })
+    }
+  }
+
+  if (groceryCardNumber) {
+    const activeGrocery = members.find(m => m.groceryCardNumber === groceryCardNumber && (m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED'))
+    if (activeGrocery) {
+      return res.status(400).json({ error: 'Grocery card number is already registered.' })
+    }
+  }
+
+  if (liquorCardNumber) {
+    const activeLiquor = members.find(m => m.liquorCardNumber === liquorCardNumber && (m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED'))
+    if (activeLiquor) {
+      return res.status(400).json({ error: 'Liquor card number is already registered.' })
+    }
   }
 
   const newMember = {
@@ -205,7 +224,23 @@ app.post('/api/auth/operator/login', (req, res) => {
 
 app.post('/api/auth/customer/login', (req, res) => {
   const { username, password } = req.body // username here represents mobile number
-  const member = members.find(m => m.mobileNumber === username)
+  const matchedMembers = members.filter(m => m.mobileNumber === username)
+
+  if (matchedMembers.length === 0) {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Invalid mobile number or password.' })
+  }
+
+  // Prioritize APPROVED > PENDING > REJECTED (and get the latest record of that status)
+  let member = matchedMembers.find(m => m.registrationStatus === 'APPROVED')
+  if (!member) {
+    member = matchedMembers.find(m => m.registrationStatus === 'PENDING')
+  }
+  if (!member) {
+    const rejectedList = matchedMembers.filter(m => m.registrationStatus === 'REJECTED')
+    if (rejectedList.length > 0) {
+      member = rejectedList[rejectedList.length - 1]
+    }
+  }
 
   if (!member) {
     return res.status(401).json({ error: 'Unauthorized', message: 'Invalid mobile number or password.' })
@@ -220,7 +255,7 @@ app.post('/api/auth/customer/login', (req, res) => {
   }
 
   if (member.registrationStatus === 'REJECTED') {
-    return res.status(403).json({ error: 'Forbidden', message: 'Your registration has been rejected. Please contact the administrator.' })
+    return res.status(403).json({ error: 'Forbidden', message: 'Your registration was rejected. Please register again.' })
   }
 
   const token = jwt.sign({ id: member.id, username: member.mobileNumber, role: 'CUSTOMER' }, JWT_SECRET)
@@ -346,9 +381,23 @@ app.get('/api/admin/members/pending', (req, res) => {
 
 app.post('/api/admin/members', (req, res) => {
   const { fullName, mobileNumber, dateOfBirth, password, groceryCardNumber, liquorCardNumber } = req.body
-  const exists = members.find(m => m.mobileNumber === mobileNumber)
+  const exists = members.find(m => m.mobileNumber === mobileNumber && (m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED'))
   if (exists) {
-    return res.status(400).json({ error: 'Member already exists' })
+    return res.status(400).json({ error: 'Member already exists with this mobile number and is active or pending' })
+  }
+
+  if (groceryCardNumber) {
+    const cardExists = members.find(m => m.groceryCardNumber === groceryCardNumber && (m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED'))
+    if (cardExists) {
+      return res.status(400).json({ error: 'Grocery card number is already registered.' })
+    }
+  }
+
+  if (liquorCardNumber) {
+    const cardExists = members.find(m => m.liquorCardNumber === liquorCardNumber && (m.registrationStatus === 'PENDING' || m.registrationStatus === 'APPROVED'))
+    if (cardExists) {
+      return res.status(400).json({ error: 'Liquor card number is already registered.' })
+    }
   }
   const newMember = {
     id: getNextMemberId(),
@@ -727,7 +776,7 @@ app.get('/api/admin/reports/:period', (req, res) => {
 
 app.post('/api/customer/verify', (req, res) => {
   const { mobileNumber } = req.body
-  const member = members.find(m => m.mobileNumber === mobileNumber)
+  const member = members.find(m => m.mobileNumber === mobileNumber && m.registrationStatus === 'APPROVED')
   
   if (member && member.registrationStatus === 'APPROVED') {
     return res.json({
@@ -883,7 +932,7 @@ app.get('/api/customer/history/:memberId', (req, res) => {
 
 app.get('/api/customer/track/:mobileNumber', (req, res) => {
   const { mobileNumber } = req.params
-  const member = members.find(m => m.mobileNumber === mobileNumber)
+  const member = members.find(m => m.mobileNumber === mobileNumber && m.registrationStatus === 'APPROVED') || members.find(m => m.mobileNumber === mobileNumber)
   if (!member) return res.json([])
 
   const history = bookings.filter(b => b.memberId === member.id).map(b => {
@@ -977,12 +1026,12 @@ app.get('/api/operator/search', (req, res) => {
   if (token) {
     matchedBooking = bookings.find(b => b.token.toLowerCase() === token.toLowerCase())
   } else if (mobileNumber) {
-    const member = members.find(m => m.mobileNumber === mobileNumber)
+    const member = members.find(m => m.mobileNumber === mobileNumber && m.registrationStatus === 'APPROVED') || members.find(m => m.mobileNumber === mobileNumber)
     if (member) {
       matchedBooking = bookings.find(b => b.memberId === member.id && b.bookingDate === getLocalDateString())
     }
   } else if (cardNumber) {
-    const member = members.find(m => m.groceryCardNumber === cardNumber || m.liquorCardNumber === cardNumber)
+    const member = members.find(m => (m.groceryCardNumber === cardNumber || m.liquorCardNumber === cardNumber) && m.registrationStatus === 'APPROVED') || members.find(m => m.groceryCardNumber === cardNumber || m.liquorCardNumber === cardNumber)
     if (member) {
       matchedBooking = bookings.find(b => b.memberId === member.id && b.bookingDate === getLocalDateString())
     }

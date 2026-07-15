@@ -33,7 +33,7 @@ public class ExcelService {
 
             for (Member member : members) {
 
-                if (!memberRepository.existsByMobileNumber(
+                if (!memberRepository.existsActiveByMobileNumber(
                         member.getMobileNumber())) {
 
                     memberRepository.save(member);

@@ -291,19 +291,19 @@ public class AdminService {
     @Transactional
     public Member createMember(MemberRequest request) {
 
-        if (memberRepository.existsByMobileNumber(request.mobileNumber())) {
+        if (memberRepository.existsActiveByMobileNumber(request.mobileNumber())) {
             throw new IllegalStateException("Mobile Number already exists");
         }
 
         if (request.groceryCardNumber() != null
                 && !request.groceryCardNumber().isBlank()
-                && memberRepository.existsByGroceryCardNumber(request.groceryCardNumber())) {
+                && memberRepository.existsActiveByGroceryCardNumber(request.groceryCardNumber())) {
             throw new IllegalStateException("Grocery card number is already registered.");
         }
 
         if (request.liquorCardNumber() != null
                 && !request.liquorCardNumber().isBlank()
-                && memberRepository.existsByLiquorCardNumber(request.liquorCardNumber())) {
+                && memberRepository.existsActiveByLiquorCardNumber(request.liquorCardNumber())) {
             throw new IllegalStateException("Liquor card number is already registered.");
         }
 
@@ -347,14 +347,14 @@ public class AdminService {
         if (request.groceryCardNumber() != null
                 && !request.groceryCardNumber().isBlank()
                 && !request.groceryCardNumber().equals(member.getGroceryCardNumber())
-                && memberRepository.existsByGroceryCardNumber(request.groceryCardNumber())) {
+                && memberRepository.existsActiveByGroceryCardNumber(request.groceryCardNumber())) {
             throw new IllegalStateException("Grocery card number is already registered.");
         }
 
         if (request.liquorCardNumber() != null
                 && !request.liquorCardNumber().isBlank()
                 && !request.liquorCardNumber().equals(member.getLiquorCardNumber())
-                && memberRepository.existsByLiquorCardNumber(request.liquorCardNumber())) {
+                && memberRepository.existsActiveByLiquorCardNumber(request.liquorCardNumber())) {
             throw new IllegalStateException("Liquor card number is already registered.");
         }
 

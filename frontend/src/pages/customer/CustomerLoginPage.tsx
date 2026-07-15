@@ -76,7 +76,7 @@ export default function CustomerLoginPage() {
 
         } catch (e: any) {
 
-            const msg = e?.response?.data?.message || e?.message || "Login Failed";
+            const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || "Login Failed";
             setError(msg);
             toast.error(msg);
 

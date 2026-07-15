@@ -17,7 +17,27 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.id = :id")
     Optional<Member> findByIdWithLock(@Param("id") Long id);
 
-    Optional<Member> findByMobileNumber(String mobileNumber);
+    @Query("SELECT m FROM Member m WHERE m.mobileNumber = :mobileNumber " +
+           "ORDER BY CASE m.registrationStatus " +
+           "  WHEN com.csd.backend.entity.RegistrationStatus.APPROVED THEN 1 " +
+           "  WHEN com.csd.backend.entity.RegistrationStatus.PENDING THEN 2 " +
+           "  WHEN com.csd.backend.entity.RegistrationStatus.REJECTED THEN 3 " +
+           "  ELSE 4 END ASC, m.id DESC")
+    List<Member> findAllByMobileNumberOrderByStatusAndIdDesc(@Param("mobileNumber") String mobileNumber);
+
+    default Optional<Member> findByMobileNumber(String mobileNumber) {
+        List<Member> list = findAllByMobileNumberOrderByStatusAndIdDesc(mobileNumber);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.mobileNumber = :mobileNumber AND (m.registrationStatus = com.csd.backend.entity.RegistrationStatus.APPROVED OR m.registrationStatus = com.csd.backend.entity.RegistrationStatus.PENDING)")
+    boolean existsActiveByMobileNumber(@Param("mobileNumber") String mobileNumber);
+
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.groceryCardNumber = :groceryCardNumber AND (m.registrationStatus = com.csd.backend.entity.RegistrationStatus.APPROVED OR m.registrationStatus = com.csd.backend.entity.RegistrationStatus.PENDING)")
+    boolean existsActiveByGroceryCardNumber(@Param("groceryCardNumber") String groceryCardNumber);
+
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.liquorCardNumber = :liquorCardNumber AND (m.registrationStatus = com.csd.backend.entity.RegistrationStatus.APPROVED OR m.registrationStatus = com.csd.backend.entity.RegistrationStatus.PENDING)")
+    boolean existsActiveByLiquorCardNumber(@Param("liquorCardNumber") String liquorCardNumber);
 
     boolean existsByMobileNumber(String mobileNumber);
 

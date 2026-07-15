@@ -141,7 +141,7 @@ export default function CustomerRegisterPage() {
         navigate('/customer/login')
       }, 1400)
     } catch (e: any) {
-      const errMsg = e?.response?.data?.message || e?.response?.data || 'Registration failed.'
+      const errMsg = e?.response?.data?.message || e?.response?.data?.error || (typeof e?.response?.data === 'string' ? e.response.data : '') || 'Registration failed.'
       setError(errMsg)
       toast.error(errMsg)
     } finally {
