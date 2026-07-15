@@ -1,7 +1,11 @@
 node_modules/
 dist/
-.env
 .dev.pid
 .dev.env.json
 .vscode/
 .idea/
+
+# Environment variables
+.env.*
+.env
+!.env.example
