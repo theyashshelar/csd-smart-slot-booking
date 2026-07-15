@@ -210,23 +210,83 @@ public class ExcelHelper {
         XSSFSheet sheet = workbook.createSheet("Booking Report");
 
         Row header = sheet.createRow(0);
-        String[] columns = {"Booking ID", "Booking Date", "Member Name", "Member ID", "Mobile Number", "Card Type", "Slot", "Token", "Booking Status"};
+        String[] columns = {
+                "Member Name",
+                "Member ID",
+                "Mobile Number",
+                "Grocery Card Number",
+                "Liquor Card Number",
+                "Booking Date",
+                "Token",
+                "Slot",
+                "Check-In Time",
+                "Check-Out Time",
+                "Remarks"
+        };
         for (int i = 0; i < columns.length; i++) {
             header.createCell(i).setCellValue(columns[i]);
         }
 
         int rowNum = 1;
+
         for (Booking b : bookings) {
+
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(b.getId() != null ? b.getId().toString() : "");
-            row.createCell(1).setCellValue(b.getBookingDate() != null ? b.getBookingDate().toString() : "");
-            row.createCell(2).setCellValue(b.getMember() != null ? b.getMember().getFullName() : "");
-            row.createCell(3).setCellValue(b.getMember() != null && b.getMember().getId() != null ? b.getMember().getId().toString() : "");
-            row.createCell(4).setCellValue(b.getMember() != null ? b.getMember().getMobileNumber() : "");
-            row.createCell(5).setCellValue(b.getSlot() != null && b.getSlot().getCardType() != null ? b.getSlot().getCardType().name() : "");
-            row.createCell(6).setCellValue(b.getSlot() != null ? b.getSlot().getLabel() : "");
-            row.createCell(7).setCellValue(b.getToken() != null ? b.getToken() : "");
-            row.createCell(8).setCellValue(b.getStatus() != null ? b.getStatus().name() : "");
+
+            row.createCell(0).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getFullName()
+                            : "");
+
+            row.createCell(1).setCellValue(
+                    b.getMember() != null && b.getMember().getId() != null
+                            ? b.getMember().getId().toString()
+                            : "");
+
+            row.createCell(2).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getMobileNumber()
+                            : "");
+
+            row.createCell(3).setCellValue(
+                    b.getMember() != null && b.getMember().getGroceryCardNumber() != null
+                            ? b.getMember().getGroceryCardNumber()
+                            : "");
+
+            row.createCell(4).setCellValue(
+                    b.getMember() != null && b.getMember().getLiquorCardNumber() != null
+                            ? b.getMember().getLiquorCardNumber()
+                            : "");
+
+            row.createCell(5).setCellValue(
+                    b.getBookingDate() != null
+                            ? b.getBookingDate().toString()
+                            : "");
+
+            row.createCell(6).setCellValue(
+                    b.getToken() != null
+                            ? b.getToken()
+                            : "");
+
+            row.createCell(7).setCellValue(
+                    b.getSlot() != null
+                            ? b.getSlot().getLabel()
+                            : "");
+
+            row.createCell(8).setCellValue(
+                    b.getCheckedInAt() != null
+                            ? b.getCheckedInAt().toString()
+                            : "N/A");
+
+            row.createCell(9).setCellValue(
+                    b.getCheckedOutAt() != null
+                            ? b.getCheckedOutAt().toString()
+                            : "N/A");
+
+            row.createCell(10).setCellValue(
+                    b.getRemarks() != null
+                            ? b.getRemarks()
+                            : "");
         }
 
         for (int i = 0; i < columns.length; i++) {
@@ -239,29 +299,88 @@ public class ExcelHelper {
         return out.toByteArray();
     }
 
-    // EXPORT CHECK-IN CHECK-OUT
-    public byte[] exportCheckInCheckOut(List<Booking> bookings) throws IOException {
+    // EXPORT GROCERY BOOKINGS
+    public byte[] exportGroceryBookings(List<Booking> bookings) throws IOException {
+
         XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.createSheet("Check-In Check-Out Report");
+        XSSFSheet sheet = workbook.createSheet("Grocery Booking Report");
 
         Row header = sheet.createRow(0);
-        String[] columns = {"Member Name", "Member ID", "Mobile Number", "Booking Date", "Token", "Slot", "Check-In Time", "Check-Out Time", "Remarks"};
+
+        String[] columns = {
+                "Member Name",
+                "Member ID",
+                "Mobile Number",
+                "Grocery Card Number",
+                "Booking Date",
+                "Token",
+                "Slot",
+                "Check-In Time",
+                "Check-Out Time",
+                "Remarks"
+        };
+
         for (int i = 0; i < columns.length; i++) {
             header.createCell(i).setCellValue(columns[i]);
         }
 
         int rowNum = 1;
+
         for (Booking b : bookings) {
+
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(b.getMember() != null ? b.getMember().getFullName() : "");
-            row.createCell(1).setCellValue(b.getMember() != null && b.getMember().getId() != null ? b.getMember().getId().toString() : "");
-            row.createCell(2).setCellValue(b.getMember() != null ? b.getMember().getMobileNumber() : "");
-            row.createCell(3).setCellValue(b.getBookingDate() != null ? b.getBookingDate().toString() : "");
-            row.createCell(4).setCellValue(b.getToken() != null ? b.getToken() : "");
-            row.createCell(5).setCellValue(b.getSlot() != null ? b.getSlot().getLabel() : "");
-            row.createCell(6).setCellValue(b.getCheckedInAt() != null ? b.getCheckedInAt().toString() : "N/A");
-            row.createCell(7).setCellValue(b.getCheckedOutAt() != null ? b.getCheckedOutAt().toString() : "N/A");
-            row.createCell(8).setCellValue(b.getRemarks() != null ? b.getRemarks() : "");
+
+            row.createCell(0).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getFullName()
+                            : "");
+
+            row.createCell(1).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getId() != null
+                            ? b.getMember().getId().toString()
+                            : "");
+
+            row.createCell(2).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getMobileNumber()
+                            : "");
+
+            row.createCell(3).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getGroceryCardNumber() != null
+                            ? b.getMember().getGroceryCardNumber()
+                            : "");
+
+            row.createCell(4).setCellValue(
+                    b.getBookingDate() != null
+                            ? b.getBookingDate().toString()
+                            : "");
+
+            row.createCell(5).setCellValue(
+                    b.getToken() != null
+                            ? b.getToken()
+                            : "");
+
+            row.createCell(6).setCellValue(
+                    b.getSlot() != null
+                            ? b.getSlot().getLabel()
+                            : "");
+
+            row.createCell(7).setCellValue(
+                    b.getCheckedInAt() != null
+                            ? b.getCheckedInAt().toString()
+                            : "N/A");
+
+            row.createCell(8).setCellValue(
+                    b.getCheckedOutAt() != null
+                            ? b.getCheckedOutAt().toString()
+                            : "N/A");
+
+            row.createCell(9).setCellValue(
+                    b.getRemarks() != null
+                            ? b.getRemarks()
+                            : "");
         }
 
         for (int i = 0; i < columns.length; i++) {
@@ -271,6 +390,204 @@ public class ExcelHelper {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         workbook.write(out);
         workbook.close();
+
+        return out.toByteArray();
+    }
+
+
+    // EXPORT LIQUOR BOOKINGS
+    public byte[] exportLiquorBookings(List<Booking> bookings) throws IOException {
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Liquor Booking Report");
+
+        Row header = sheet.createRow(0);
+
+        String[] columns = {
+                "Member Name",
+                "Member ID",
+                "Mobile Number",
+                "Liquor Card Number",
+                "Booking Date",
+                "Token",
+                "Slot",
+                "Check-In Time",
+                "Check-Out Time",
+                "Remarks"
+        };
+
+        for (int i = 0; i < columns.length; i++) {
+            header.createCell(i).setCellValue(columns[i]);
+        }
+
+        int rowNum = 1;
+
+        for (Booking b : bookings) {
+
+            Row row = sheet.createRow(rowNum++);
+
+            row.createCell(0).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getFullName()
+                            : "");
+
+            row.createCell(1).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getId() != null
+                            ? b.getMember().getId().toString()
+                            : "");
+
+            row.createCell(2).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getMobileNumber()
+                            : "");
+
+            row.createCell(3).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getLiquorCardNumber() != null
+                            ? b.getMember().getLiquorCardNumber()
+                            : "");
+
+            row.createCell(4).setCellValue(
+                    b.getBookingDate() != null
+                            ? b.getBookingDate().toString()
+                            : "");
+
+            row.createCell(5).setCellValue(
+                    b.getToken() != null
+                            ? b.getToken()
+                            : "");
+
+            row.createCell(6).setCellValue(
+                    b.getSlot() != null
+                            ? b.getSlot().getLabel()
+                            : "");
+
+            row.createCell(7).setCellValue(
+                    b.getCheckedInAt() != null
+                            ? b.getCheckedInAt().toString()
+                            : "N/A");
+
+            row.createCell(8).setCellValue(
+                    b.getCheckedOutAt() != null
+                            ? b.getCheckedOutAt().toString()
+                            : "N/A");
+
+            row.createCell(9).setCellValue(
+                    b.getRemarks() != null
+                            ? b.getRemarks()
+                            : "");
+        }
+
+        for (int i = 0; i < columns.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        workbook.close();
+
+        return out.toByteArray();
+    }
+
+    // EXPORT CHECK-IN CHECK-OUT
+    public byte[] exportCheckInCheckOut(List<Booking> bookings) throws IOException {
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Check-In Check-Out Report");
+
+        Row header = sheet.createRow(0);
+
+        String[] columns = {
+                "Member Name",
+                "Member ID",
+                "Mobile Number",
+                "Grocery Card Number",
+                "Liquor Card Number",
+                "Booking Date",
+                "Token",
+                "Slot",
+                "Check-In Time",
+                "Check-Out Time",
+                "Remarks"
+        };
+
+        for (int i = 0; i < columns.length; i++) {
+            header.createCell(i).setCellValue(columns[i]);
+        }
+
+        int rowNum = 1;
+
+        for (Booking b : bookings) {
+
+            Row row = sheet.createRow(rowNum++);
+
+            row.createCell(0).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getFullName()
+                            : "");
+
+            row.createCell(1).setCellValue(
+                    b.getMember() != null && b.getMember().getId() != null
+                            ? b.getMember().getId().toString()
+                            : "");
+
+            row.createCell(2).setCellValue(
+                    b.getMember() != null
+                            ? b.getMember().getMobileNumber()
+                            : "");
+
+            row.createCell(3).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getGroceryCardNumber() != null
+                            ? b.getMember().getGroceryCardNumber()
+                            : "");
+
+            row.createCell(4).setCellValue(
+                    b.getMember() != null &&
+                            b.getMember().getLiquorCardNumber() != null
+                            ? b.getMember().getLiquorCardNumber()
+                            : "");
+
+            row.createCell(5).setCellValue(
+                    b.getBookingDate() != null
+                            ? b.getBookingDate().toString()
+                            : "");
+
+            row.createCell(6).setCellValue(
+                    b.getToken() != null
+                            ? b.getToken()
+                            : "");
+
+            row.createCell(7).setCellValue(
+                    b.getSlot() != null
+                            ? b.getSlot().getLabel()
+                            : "");
+
+            row.createCell(8).setCellValue(
+                    b.getCheckedInAt() != null
+                            ? b.getCheckedInAt().toString()
+                            : "N/A");
+
+            row.createCell(9).setCellValue(
+                    b.getCheckedOutAt() != null
+                            ? b.getCheckedOutAt().toString()
+                            : "N/A");
+
+            row.createCell(10).setCellValue(
+                    b.getRemarks() != null
+                            ? b.getRemarks()
+                            : "");
+        }
+
+        for (int i = 0; i < columns.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        workbook.write(out);
+        workbook.close();
+
         return out.toByteArray();
     }
 

@@ -345,8 +345,7 @@ public class AdminController {
                 .filter(b -> b.getSlot() != null && b.getSlot().getCardType() == com.csd.backend.entity.CardType.GROCERY)
                 .collect(java.util.stream.Collectors.toList());
 
-        byte[] data = excelService.exportBookings(groceryBookings);
-        String today = java.time.LocalDate.now().toString();
+        byte[] data = excelService.exportGroceryBookings(groceryBookings);        String today = java.time.LocalDate.now().toString();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=grocery_bookings_" + today + ".xlsx")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -372,8 +371,7 @@ public class AdminController {
                 .filter(b -> b.getSlot() != null && b.getSlot().getCardType() == com.csd.backend.entity.CardType.LIQUOR)
                 .collect(java.util.stream.Collectors.toList());
 
-        byte[] data = excelService.exportBookings(liquorBookings);
-        String today = java.time.LocalDate.now().toString();
+        byte[] data = excelService.exportLiquorBookings(liquorBookings);        String today = java.time.LocalDate.now().toString();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=liquor_bookings_" + today + ".xlsx")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)

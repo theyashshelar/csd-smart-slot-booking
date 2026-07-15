@@ -115,6 +115,31 @@ public class ExcelService {
         }
     }
 
+    // Export Grocery Bookings
+    public byte[] exportGroceryBookings(List<Booking> bookings) {
+        try {
+            return excelHelper.exportGroceryBookings(bookings);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to export grocery bookings",
+                    e
+            );
+        }
+    }
+
+    // Export Liquor Bookings
+    public byte[] exportLiquorBookings(List<Booking> bookings) {
+        try {
+            return excelHelper.exportLiquorBookings(bookings);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to export liquor bookings",
+                    e
+            );
+        }
+    }
+
+
     // Export Check-In Check-Out
     public byte[] exportCheckInCheckOut(List<Booking> bookings) {
         try {
