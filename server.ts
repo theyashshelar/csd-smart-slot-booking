@@ -877,10 +877,10 @@ app.post('/api/customer/book', (req, res) => {
     return res.status(400).json({ error: 'This time slot is fully booked.' })
   }
 
-  // Check if customer already has a booking for this cardType on this date
-  const alreadyBooked = bookings.find(b => b.memberId === member.id && b.bookingDate === bDate && b.bookingLabel === cardType && b.status !== 'CANCELLED')
-  if (alreadyBooked) {
-    return res.status(400).json({ error: `You have already booked a ${cardType} slot for this date.` })
+  // Check if customer already has an active booking for this exact slot on this date
+  const alreadyBookedSlot = bookings.find(b => b.memberId === member.id && b.bookingDate === bDate && b.slotId === slot.id && b.bookingLabel === cardType && b.status !== 'CANCELLED')
+  if (alreadyBookedSlot) {
+    return res.status(400).json({ error: 'You have already booked this slot.' })
   }
 
   const token = generateBookingToken(cardType, slot.id)

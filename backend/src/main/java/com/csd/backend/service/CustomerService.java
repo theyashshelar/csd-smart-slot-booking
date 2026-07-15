@@ -365,36 +365,16 @@ public class CustomerService {
             );
         }
 
-        int maxBookingPerDay = settingsRepository.findByKeyName("MAX_BOOKING_PER_DAY")
-                .map(Settings::getSettingValue)
-                .map(Integer::parseInt)
-                .orElse(1);
-
-        long totalActiveBookingsOnDate = bookingRepository
-                .findByMemberIdOrderByBookingDateDesc(member.getId())
-                .stream()
-                .filter(b -> b.getBookingDate().equals(bookingDate)
-                        && b.getStatus() != BookingStatus.CANCELLED)
-                .count();
-
-        if (totalActiveBookingsOnDate >= maxBookingPerDay) {
-            throw new BadRequestException("You have reached the maximum allowed bookings (" + maxBookingPerDay + ") for this date.");
-        }
-
-        boolean alreadyBooked = bookingRepository
+        boolean alreadyBookedSlot = bookingRepository
                 .findByMemberIdOrderByBookingDateDesc(member.getId())
                 .stream()
                 .anyMatch(b -> b.getBookingDate().equals(bookingDate)
+                        && b.getSlot().getId().equals(slot.getId())
                         && b.getSlot().getCardType() == request.cardType()
                         && b.getStatus() != BookingStatus.CANCELLED);
 
-        if (alreadyBooked) {
-            String timeRef = bookingDate.equals(todayKolkata) ? "today" : "this date";
-            throw new BadRequestException(
-                    request.cardType() == CardType.GROCERY
-                            ? "You have already booked a Grocery slot for " + timeRef + "."
-                            : "You have already booked a Liquor slot for " + timeRef + "."
-            );
+        if (alreadyBookedSlot) {
+            throw new BadRequestException("You have already booked this slot.");
         }
 
         long bookedForSelectedDate =
