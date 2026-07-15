@@ -52,15 +52,6 @@ public class AuthService {
             throw new IllegalArgumentException("Mobile number must contain exactly 10 digits.");
         }
 
-        if (memberRepository.existsActiveByMobileNumber(cleanedMobile)) {
-            Member m = memberRepository.findByMobileNumber(cleanedMobile).orElse(null);
-            if (m != null && m.getRegistrationStatus() == RegistrationStatus.PENDING) {
-                throw new IllegalArgumentException("Your registration is already pending administrator approval. Please try again after your registration has been approved.");
-            } else {
-                throw new IllegalArgumentException("Mobile number is already registered.");
-            }
-        }
-
         if (request.getGroceryCardNumber() != null
                 && !request.getGroceryCardNumber().isBlank()
                 && request.getLiquorCardNumber() != null
@@ -75,29 +66,72 @@ public class AuthService {
             throw new IllegalArgumentException("Please provide at least one CSD Card Number (Grocery or Liquor).");
         }
 
-        if (request.getGroceryCardNumber() != null
-                && !request.getGroceryCardNumber().isBlank()
-                && memberRepository.existsActiveByGroceryCardNumber(request.getGroceryCardNumber())) {
-
-            throw new IllegalArgumentException("Grocery card number is already registered.");
-        }
-
-        if (request.getLiquorCardNumber() != null
-                && !request.getLiquorCardNumber().isBlank()
-                && memberRepository.existsActiveByLiquorCardNumber(request.getLiquorCardNumber())) {
-
-            throw new IllegalArgumentException("Liquor card number is already registered.");
-        }
-
         String groceryCardNumber =
                 (request.getGroceryCardNumber() == null || request.getGroceryCardNumber().isBlank())
                                 ? null
-                                : request.getGroceryCardNumber();
+                                : request.getGroceryCardNumber().trim();
 
         String liquorCardNumber =
                 (request.getLiquorCardNumber() == null || request.getLiquorCardNumber().isBlank())
                                 ? null
-                                :request.getLiquorCardNumber();
+                                : request.getLiquorCardNumber().trim();
+
+        // Find existing member by mobile number, grocery card, or liquor card
+        Member existingMember = memberRepository.findByMobileNumber(cleanedMobile).orElse(null);
+        if (existingMember == null && groceryCardNumber != null) {
+            existingMember = memberRepository.findByGroceryCardNumber(groceryCardNumber).orElse(null);
+        }
+        if (existingMember == null && liquorCardNumber != null) {
+            existingMember = memberRepository.findByLiquorCardNumber(liquorCardNumber).orElse(null);
+        }
+
+        if (existingMember != null) {
+            if (existingMember.getRegistrationStatus() == RegistrationStatus.PENDING) {
+                throw new IllegalArgumentException("Your registration is under review.");
+            }
+            if (existingMember.getRegistrationStatus() == RegistrationStatus.APPROVED) {
+                throw new IllegalArgumentException("Your account already exists.");
+            }
+            if (existingMember.getRegistrationStatus() == RegistrationStatus.REJECTED) {
+                // Verify that new values do not conflict with other active (APPROVED/PENDING) members
+                if (groceryCardNumber != null) {
+                    Member other = memberRepository.findByGroceryCardNumber(groceryCardNumber).orElse(null);
+                    if (other != null && !other.getId().equals(existingMember.getId())) {
+                        if (other.getRegistrationStatus() == RegistrationStatus.PENDING) {
+                            throw new IllegalArgumentException("Your registration is under review.");
+                        } else if (other.getRegistrationStatus() == RegistrationStatus.APPROVED) {
+                            throw new IllegalArgumentException("Your account already exists.");
+                        }
+                    }
+                }
+                if (liquorCardNumber != null) {
+                    Member other = memberRepository.findByLiquorCardNumber(liquorCardNumber).orElse(null);
+                    if (other != null && !other.getId().equals(existingMember.getId())) {
+                        if (other.getRegistrationStatus() == RegistrationStatus.PENDING) {
+                            throw new IllegalArgumentException("Your registration is under review.");
+                        } else if (other.getRegistrationStatus() == RegistrationStatus.APPROVED) {
+                            throw new IllegalArgumentException("Your account already exists.");
+                        }
+                    }
+                }
+
+                existingMember.setFullName(request.getFullName());
+                existingMember.setMobileNumber(cleanedMobile);
+                existingMember.setDateOfBirth(request.getDateOfBirth());
+                existingMember.setGroceryCardNumber(groceryCardNumber);
+                existingMember.setLiquorCardNumber(liquorCardNumber);
+                existingMember.setPassword(passwordEncoder.encode(request.getPassword()));
+                existingMember.setRegistrationStatus(RegistrationStatus.PENDING);
+                existingMember.setRegistrationDate(java.time.LocalDateTime.now());
+
+                Member savedMember = memberRepository.save(existingMember);
+
+                return RegisterResponse.builder()
+                        .memberId(savedMember.getId())
+                        .message("Registration submitted successfully. Please wait for admin approval.")
+                        .build();
+            }
+        }
 
         Member member = Member.builder()
                 .fullName(request.getFullName())

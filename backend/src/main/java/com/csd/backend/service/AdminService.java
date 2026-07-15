@@ -739,15 +739,6 @@ public class AdminService {
                 RegistrationStatus.REJECTED
         );
 
-        String suffix = "_REJ_" + id;
-        member.setMobileNumber(member.getMobileNumber() + suffix);
-        if (member.getGroceryCardNumber() != null && !member.getGroceryCardNumber().isBlank()) {
-            member.setGroceryCardNumber(member.getGroceryCardNumber() + suffix);
-        }
-        if (member.getLiquorCardNumber() != null && !member.getLiquorCardNumber().isBlank()) {
-            member.setLiquorCardNumber(member.getLiquorCardNumber() + suffix);
-        }
-
         Member saved = memberRepository.save(member);
 
         auditLogRepository.save(

@@ -17,18 +17,11 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.id = :id")
     Optional<Member> findByIdWithLock(@Param("id") Long id);
 
-    @Query("SELECT m FROM Member m WHERE m.mobileNumber = :mobileNumber OR m.mobileNumber LIKE CONCAT(:mobileNumber, '_REJ_%') " +
-           "ORDER BY CASE m.registrationStatus " +
-           "  WHEN com.csd.backend.entity.RegistrationStatus.APPROVED THEN 1 " +
-           "  WHEN com.csd.backend.entity.RegistrationStatus.PENDING THEN 2 " +
-           "  WHEN com.csd.backend.entity.RegistrationStatus.REJECTED THEN 3 " +
-           "  ELSE 4 END ASC, m.id DESC")
-    List<Member> findAllByMobileNumberOrderByStatusAndIdDesc(@Param("mobileNumber") String mobileNumber);
+    Optional<Member> findByMobileNumber(String mobileNumber);
 
-    default Optional<Member> findByMobileNumber(String mobileNumber) {
-        List<Member> list = findAllByMobileNumberOrderByStatusAndIdDesc(mobileNumber);
-        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
-    }
+    Optional<Member> findByGroceryCardNumber(String groceryCardNumber);
+
+    Optional<Member> findByLiquorCardNumber(String liquorCardNumber);
 
     @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.mobileNumber = :mobileNumber AND (m.registrationStatus = com.csd.backend.entity.RegistrationStatus.APPROVED OR m.registrationStatus = com.csd.backend.entity.RegistrationStatus.PENDING)")
     boolean existsActiveByMobileNumber(@Param("mobileNumber") String mobileNumber);
