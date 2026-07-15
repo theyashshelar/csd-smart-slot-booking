@@ -17,8 +17,13 @@ import {
 } from '@mui/icons-material'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import { formatTime12h, formatSlotLabel } from '../utils/timeFormatter'
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+import { useState } from 'react'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
+import { FileText, Image as ImageIcon } from 'lucide-react'
+import { getQrCodeBase64, downloadPdfPass, downloadPngPass } from '../utils/passGenerator'
 
 function formatDate(value?: string) {
   if (!value) return 'Not available'
@@ -45,7 +50,31 @@ export default function BookingSuccessPage() {
   }
 
   const bookingId = booking.id || booking.bookingId
-  const qrUrl = `${apiBaseUrl}/qr/${booking.token}`
+
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const open = Boolean(anchorEl)
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget)
+  }
+
+  const handleClose = () => {
+    setAnchorEl(null)
+  }
+
+  const handleDownloadPdf = async () => {
+    handleClose()
+    const qrBase64 = await getQrCodeBase64(booking.token)
+    const memberName = localStorage.getItem('fullName') || 'Valued Member'
+    await downloadPdfPass(booking, memberName, qrBase64)
+  }
+
+  const handleDownloadPng = async () => {
+    handleClose()
+    const qrBase64 = await getQrCodeBase64(booking.token)
+    const memberName = localStorage.getItem('fullName') || 'Valued Member'
+    await downloadPngPass(booking, memberName, qrBase64)
+  }
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: { xs: 3, md: 6 } }}>
@@ -125,27 +154,57 @@ export default function BookingSuccessPage() {
                 <Card variant="outlined" sx={{ height: '100%', borderRadius: 4 }}>
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={2.5} alignItems="center" textAlign="center">
-                      <Box sx={{ bgcolor: '#fff', p: 2.5, borderRadius: 3, border: '1px solid rgba(17,24,39,0.08)' }}>
+                      <Box id="qr-code-container" sx={{ bgcolor: '#fff', p: 2.5, borderRadius: 3, border: '1px solid rgba(17,24,39,0.08)' }}>
                         <QRCode value={booking.token || ''} size={190} />
                       </Box>
                       <Box>
                         <Typography variant="h6" fontWeight={850}>
-                          Download QR
+                          Download Pass
                         </Typography>
                         <Typography color="text.secondary">
                           Present this QR at the operator desk for check-in.
                         </Typography>
                       </Box>
                       <Button
-                        component="a"
-                        href={qrUrl}
-                        download={`${booking.token}.png`}
+                        onClick={handleClick}
                         variant="contained"
                         startIcon={<DownloadRounded />}
+                        endIcon={<Typography sx={{ ml: 0.5, fontSize: '0.8rem' }}>▼</Typography>}
                         fullWidth
+                        sx={{ bgcolor: '#1B5E20', '&:hover': { bgcolor: '#102319' } }}
                       >
-                        Download QR
+                        Download
                       </Button>
+                      <Menu
+                        anchorEl={anchorEl}
+                        open={open}
+                        onClose={handleClose}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                        slotProps={{
+                          paper: {
+                            sx: {
+                              borderRadius: '8px',
+                              minWidth: 220,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                              border: '1px solid #E5E7EB',
+                            }
+                          }
+                        }}
+                      >
+                        <MenuItem onClick={handleDownloadPdf} sx={{ py: 1 }}>
+                          <ListItemIcon>
+                            <FileText size={16} color="#1B5E20" />
+                          </ListItemIcon>
+                          <ListItemText primary="Download Booking Pass (PDF)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }} />
+                        </MenuItem>
+                        <MenuItem onClick={handleDownloadPng} sx={{ py: 1 }}>
+                          <ListItemIcon>
+                            <ImageIcon size={16} color="#1B5E20" />
+                          </ListItemIcon>
+                          <ListItemText primary="Download Booking Pass (PNG)" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }} />
+                        </MenuItem>
+                      </Menu>
                     </Stack>
                   </CardContent>
                 </Card>
