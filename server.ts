@@ -1045,9 +1045,7 @@ app.get('/api/customer/landing', (req, res) => {
 // 9. OPERATOR APIS
 
 app.get('/api/operator/queue', (req, res) => {
-  const today = getLocalDateString()
-  const queueBookings = bookings.filter(b => b.bookingDate === today && b.status !== 'CANCELLED')
-  res.json(queueBookings)
+  res.json(bookings)
 })
 
 app.get('/api/operator/search', (req, res) => {

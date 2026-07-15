@@ -48,7 +48,7 @@ export default function QueueTable({
   const filteredSortedBookings = useMemo(() => {
     if (tab === 'today') {
       return bookings
-        .filter((b) => b.bookingDate === todayStr)
+        .filter((b) => b.bookingDate === todayStr && b.status !== 'CHECKED_OUT' && b.status !== 'CANCELLED')
         .sort((a, b) => {
           const startTimeA = a.slot?.startTime || ''
           const startTimeB = b.slot?.startTime || ''
@@ -59,7 +59,7 @@ export default function QueueTable({
         })
     } else {
       return bookings
-        .filter((b) => b.bookingDate > todayStr)
+        .filter((b) => b.bookingDate > todayStr && b.status !== 'CHECKED_OUT' && b.status !== 'CANCELLED')
         .sort((a, b) => {
           const dateComp = (a.bookingDate || '').localeCompare(b.bookingDate || '')
           if (dateComp !== 0) return dateComp

@@ -27,12 +27,7 @@ public class OperatorService {
     // Today's Queue
     public List<Booking> getQueue() {
 
-        return bookingRepository.findByStatusIn(
-                List.of(
-                        BookingStatus.BOOKED,
-                        BookingStatus.CHECKED_IN
-                )
-        );
+        return bookingRepository.findAll();
     }
 
     // Search Booking (Manual + QR)
