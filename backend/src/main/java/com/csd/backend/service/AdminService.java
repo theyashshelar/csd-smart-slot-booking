@@ -414,14 +414,16 @@ public class AdminService {
     }
 
     //Get All Slots
+    @Transactional(readOnly = true)
     public List<Slot> getSlots() {
         LocalDate today = LocalDate.now();
-        List<Booking> todayBookings = bookingRepository.findByBookingDate(today);
         List<Slot> slots = slotRepository.findAllByOrderByStartTimeAsc();
         slots.forEach(slot -> {
-            long bookedCount = todayBookings.stream()
-                    .filter(b -> b.getSlot().getId().equals(slot.getId()) && b.getStatus() != BookingStatus.CANCELLED)
-                    .count();
+            long bookedCount = bookingRepository.countBySlotIdAndBookingDateAndStatusNot(
+                    slot.getId(),
+                    today,
+                    BookingStatus.CANCELLED
+            );
             slot.setBookedCount((int) bookedCount);
         });
         return slots;
