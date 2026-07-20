@@ -50,7 +50,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             Long slotId
     );
 
+    long countBySlotIdAndBookingDateAndStatusNot(
+            Long slotId,
+            LocalDate bookingDate,
+            BookingStatus status
+    );
+
     long countByBookingDate(LocalDate bookingDate);
+
+    long countByBookingDateAndStatusNot(LocalDate bookingDate, BookingStatus status);
 
     long countByStatus(BookingStatus status);
 

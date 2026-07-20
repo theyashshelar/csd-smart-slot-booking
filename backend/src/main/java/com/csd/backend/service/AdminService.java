@@ -96,28 +96,34 @@ public class AdminService {
 
         long availableSlots = allSlots.stream()
                 .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
-                .mapToLong(slot -> Math.max(
-                        slot.getCapacity() - slot.getBookedCount(),
-                        0
-                ))
+                .mapToLong(slot -> {
+                    long bookedCount = todayBookings.stream()
+                            .filter(b -> b.getSlot().getId().equals(slot.getId()) && b.getStatus() != BookingStatus.CANCELLED)
+                            .count();
+                    return Math.max(slot.getCapacity() - bookedCount, 0);
+                })
                 .sum();
 
         long groceryAvailable = allSlots.stream()
                 .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
                 .filter(slot -> slot.getCardType() == CardType.GROCERY)
-                .mapToLong(slot -> Math.max(
-                        slot.getCapacity() - slot.getBookedCount(),
-                        0
-                ))
+                .mapToLong(slot -> {
+                    long bookedCount = todayBookings.stream()
+                            .filter(b -> b.getSlot().getId().equals(slot.getId()) && b.getStatus() != BookingStatus.CANCELLED)
+                            .count();
+                    return Math.max(slot.getCapacity() - bookedCount, 0);
+                })
                 .sum();
 
         long liquorAvailable = allSlots.stream()
                 .filter(slot -> Boolean.TRUE.equals(slot.getActive()))
                 .filter(slot -> slot.getCardType() == CardType.LIQUOR)
-                .mapToLong(slot -> Math.max(
-                        slot.getCapacity() - slot.getBookedCount(),
-                        0
-                ))
+                .mapToLong(slot -> {
+                    long bookedCount = todayBookings.stream()
+                            .filter(b -> b.getSlot().getId().equals(slot.getId()) && b.getStatus() != BookingStatus.CANCELLED)
+                            .count();
+                    return Math.max(slot.getCapacity() - bookedCount, 0);
+                })
                 .sum();
 
         long groceryBookings = todayBookings.stream()
@@ -409,8 +415,16 @@ public class AdminService {
 
     //Get All Slots
     public List<Slot> getSlots() {
-
-        return slotRepository.findAllByOrderByStartTimeAsc();
+        LocalDate today = LocalDate.now();
+        List<Booking> todayBookings = bookingRepository.findByBookingDate(today);
+        List<Slot> slots = slotRepository.findAllByOrderByStartTimeAsc();
+        slots.forEach(slot -> {
+            long bookedCount = todayBookings.stream()
+                    .filter(b -> b.getSlot().getId().equals(slot.getId()) && b.getStatus() != BookingStatus.CANCELLED)
+                    .count();
+            slot.setBookedCount((int) bookedCount);
+        });
+        return slots;
     }
 
     //Create Slots
@@ -585,7 +599,9 @@ public class AdminService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("Slot not found"));
 
-        if (slot.getBookedCount() > 0) {
+        boolean hasBookings = bookingRepository.findBySlotId(id).stream()
+                .anyMatch(b -> b.getStatus() != BookingStatus.CANCELLED);
+        if (hasBookings) {
             throw new IllegalStateException(
                     "Cannot delete slot with existing bookings");
         }

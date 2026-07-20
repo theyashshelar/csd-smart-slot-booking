@@ -234,17 +234,11 @@ public class CustomerService {
                     availableSlot.setCapacity(slot.getCapacity());
                     availableSlot.setActive(slot.getActive());
                     availableSlot.setBookedCount(
-                            bookingRepository
-                                    .findBySlotIdAndBookingDate(
-                                             slot.getId(),
-                                             effectiveDate
-                                    )
-                                    .stream()
-                                    .filter(booking ->
-                                            booking.getStatus()
-                                                    != BookingStatus.CANCELLED)
-                                    .toList()
-                                    .size()
+                            (int) bookingRepository.countBySlotIdAndBookingDateAndStatusNot(
+                                    slot.getId(),
+                                    effectiveDate,
+                                    BookingStatus.CANCELLED
+                            )
                     );
 
                     return availableSlot;
@@ -378,14 +372,11 @@ public class CustomerService {
         }
 
         long bookedForSelectedDate =
-                bookingRepository
-                        .findBySlotIdAndBookingDate(
-                                slot.getId(),
-                                bookingDate
-                        )
-                        .stream()
-                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
-                        .count();
+                bookingRepository.countBySlotIdAndBookingDateAndStatusNot(
+                        slot.getId(),
+                        bookingDate,
+                        BookingStatus.CANCELLED
+                );
 
         if (bookedForSelectedDate >= slot.getCapacity()) {
             throw new ConflictException(
@@ -417,10 +408,7 @@ public class CustomerService {
 
         smsService.sendBookingConfirmation(savedBooking);
 
-        if (bookingDate.equals(todayKolkata)) {
-            slot.setBookedCount((int) bookedForSelectedDate + 1);
-            slotRepository.save(slot);
-        }
+
 
         auditLogRepository.save(
                 log(
@@ -449,20 +437,6 @@ public class CustomerService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
-
-        ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
-        if (booking.getBookingDate().equals(LocalDate.now(kolkataZone))) {
-            Slot slot = booking.getSlot();
-            if (slot != null) {
-                long currentBookedCount = bookingRepository
-                        .findBySlotIdAndBookingDate(slot.getId(), booking.getBookingDate())
-                        .stream()
-                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
-                        .count();
-                slot.setBookedCount((int) currentBookedCount);
-                slotRepository.save(slot);
-            }
-        }
 
         auditLogRepository.save(
                 log(
@@ -592,13 +566,21 @@ public class CustomerService {
 
         ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
         LocalDate todayKolkata = LocalDate.now(kolkataZone);
-        long todayBookings = bookingRepository.countByBookingDate(todayKolkata);
+        long todayBookings = bookingRepository.countByBookingDateAndStatusNot(todayKolkata, BookingStatus.CANCELLED);
 
         List<Slot> availableSlots;
         if (isHolidayOrDisabled(todayKolkata)) {
             availableSlots = java.util.Collections.emptyList();
         } else {
             availableSlots = slotRepository.findByActiveTrueOrderByStartTimeAsc();
+            availableSlots.forEach(slot -> {
+                long bookedCount = bookingRepository.countBySlotIdAndBookingDateAndStatusNot(
+                        slot.getId(),
+                        todayKolkata,
+                        BookingStatus.CANCELLED
+                );
+                slot.setBookedCount((int) bookedCount);
+            });
         }
 
         java.util.Map<String, String> settingsMap = new java.util.HashMap<>();
