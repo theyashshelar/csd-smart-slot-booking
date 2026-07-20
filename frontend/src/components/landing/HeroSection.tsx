@@ -20,7 +20,7 @@ import { motion } from 'framer-motion'
 import { Link as RouterLink } from 'react-router-dom'
 import type { LandingTotals } from '../../pages/LandingPage'
 import type { LandingPageResponse } from '../../types/api'
-import { getSettings } from '../../services/api'
+
 
 type HeroSectionProps = {
   data: LandingPageResponse | null
@@ -61,19 +61,7 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
     }
   }, [data])
 
-  useEffect(() => {
-    getSettings()
-      .then((res: any) => {
-        if (res.data && Array.isArray(res.data)) {
-          const mapped = res.data.reduce((acc: any, item: any) => {
-            if (item.keyName) acc[item.keyName] = item.settingValue
-            return acc
-          }, {})
-          setSettings((prev) => ({ ...prev, ...mapped }))
-        }
-      })
-      .catch((err) => console.error('Failed to load settings in HeroSection', err))
-  }, [])
+
 
   const statusInfo = useMemo(() => {
     const now = new Date()
