@@ -111,10 +111,12 @@ export default function CustomerBookSlotPage() {
     const weeklyHolidays = settings.weeklyHolidays
       ? settings.weeklyHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : ['Sunday']
-    const selectedDateObj = new Date(`${bookingDate}T00:00:00`)
+    const [y, m, d] = bookingDate.split('-').map(Number)
+    const selectedDateObj = new Date(y, m - 1, d)
     const dayOfWeek = selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
-    if (weeklyHolidays.includes(dayOfWeek)) {
-      return `Selected date is a Weekly Holiday ${dayOfWeek}.`
+    const isWeeklyHoliday = weeklyHolidays.some((day) => day.toLowerCase() === dayOfWeek.toLowerCase())
+    if (isWeeklyHoliday) {
+      return `Selected date is a Weekly Holiday (${dayOfWeek}).`
     }
 
     // 3. Check special holidays

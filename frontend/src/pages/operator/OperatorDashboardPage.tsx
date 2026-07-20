@@ -66,7 +66,7 @@ export default function OperatorDashboardPage() {
       
       if (settingsRes.data && Array.isArray(settingsRes.data)) {
         const mapped = settingsRes.data.reduce((acc: any, item: any) => {
-          acc[item.key] = item.value
+          if (item.keyName) acc[item.keyName] = item.settingValue
           return acc
         }, {})
         setSettings((prev) => ({ ...prev, ...mapped }))

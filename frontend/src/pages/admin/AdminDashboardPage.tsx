@@ -181,7 +181,9 @@ export default function AdminDashboardPage() {
       ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : []
 
-    if (weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)) {
+    const isWeeklyHoliday = weeklyHolidays.some((day) => day.toLowerCase() === todayDayName.toLowerCase())
+
+    if (isWeeklyHoliday || specialHolidays.includes(todayKolkata)) {
       return { label: 'Holiday', subLabel: 'Holiday - Operations Closed', color: '#D32F2F' }
     }
 

@@ -56,11 +56,17 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
   })
 
   useEffect(() => {
+    if (data?.settings) {
+      setSettings((prev) => ({ ...prev, ...data.settings }))
+    }
+  }, [data])
+
+  useEffect(() => {
     getSettings()
       .then((res: any) => {
         if (res.data && Array.isArray(res.data)) {
           const mapped = res.data.reduce((acc: any, item: any) => {
-            acc[item.key] = item.value
+            if (item.keyName) acc[item.keyName] = item.settingValue
             return acc
           }, {})
           setSettings((prev) => ({ ...prev, ...mapped }))
@@ -82,7 +88,9 @@ export default function HeroSection({ data, totals, loading }: HeroSectionProps)
       ? settings.specialHolidays.split(',').map((d) => d.trim()).filter(Boolean)
       : []
 
-    if (weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)) {
+    const isWeeklyHoliday = weeklyHolidays.some((day) => day.toLowerCase() === todayDayName.toLowerCase())
+
+    if (isWeeklyHoliday || specialHolidays.includes(todayKolkata)) {
       return { label: 'Holiday', color: '#EF6C00' } // Orange/Amber 🟠
     }
 

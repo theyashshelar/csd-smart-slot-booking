@@ -591,15 +591,28 @@ public class CustomerService {
         long registeredMembers = memberRepository.count();
 
         ZoneId kolkataZone = ZoneId.of("Asia/Kolkata");
-        long todayBookings = bookingRepository.countByBookingDate(LocalDate.now(kolkataZone));
+        LocalDate todayKolkata = LocalDate.now(kolkataZone);
+        long todayBookings = bookingRepository.countByBookingDate(todayKolkata);
 
-        List<Slot> availableSlots =
-                slotRepository.findByActiveTrueOrderByStartTimeAsc();
+        List<Slot> availableSlots;
+        if (isHolidayOrDisabled(todayKolkata)) {
+            availableSlots = java.util.Collections.emptyList();
+        } else {
+            availableSlots = slotRepository.findByActiveTrueOrderByStartTimeAsc();
+        }
+
+        java.util.Map<String, String> settingsMap = new java.util.HashMap<>();
+        settingsRepository.findAll().forEach(s -> {
+            if (s.getKeyName() != null) {
+                settingsMap.put(s.getKeyName(), s.getSettingValue() != null ? s.getSettingValue() : "");
+            }
+        });
 
         return new LandingPageResponse(
                 registeredMembers,
                 todayBookings,
-                availableSlots
+                availableSlots,
+                settingsMap
         );
     }
 }

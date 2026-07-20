@@ -174,4 +174,5 @@ export interface LandingPageResponse {
   registeredMembers: number;
   todayBookings: number;
   availableSlots: Slot[];
+  settings?: Record<string, string>;
 }

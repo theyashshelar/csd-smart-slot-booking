@@ -48,6 +48,20 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
   }, [])
 
   const originalSlots = data?.availableSlots ?? []
+  const settings = data?.settings ?? {}
+  
+  const weeklyHolidays = settings.weeklyHolidays
+    ? settings.weeklyHolidays.split(',').map((d: any) => d.trim()).filter(Boolean)
+    : ['Sunday']
+  
+  const specialHolidays = settings.specialHolidays
+    ? settings.specialHolidays.split(',').map((d: any) => d.trim()).filter(Boolean)
+    : []
+
+  const todayDayName = currentTime.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' })
+  const todayKolkata = currentTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+
+  const isTodayHoliday = weeklyHolidays.includes(todayDayName) || specialHolidays.includes(todayKolkata)
 
   // Filter slots for today's date using the 30-minute booking cutoff (truly live)
   const bookableSlots = originalSlots.filter((s) => {
@@ -92,14 +106,26 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Stack>
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            <Chip icon={<Inventory2Rounded />} label={`${totals.available} Seats Available`} color="success" />
-            <Chip icon={<AccessTimeRounded />} label={`${totals.activeSlots} Time Slots`} variant="outlined" />
+            {!isTodayHoliday && <Chip icon={<Inventory2Rounded />} label={`${totals.available} Seats Available`} color="success" />}
+            {!isTodayHoliday && <Chip icon={<AccessTimeRounded />} label={`${totals.activeSlots} Time Slots`} variant="outlined" />}
           </Stack>
         </Stack>
 
         {loading && <LinearProgress color="success" sx={{ borderRadius: 99, mb: 3 }} />}
 
-        {!loading && originalSlots.length === 0 && (
+        {!loading && isTodayHoliday && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Card sx={{ maxWidth: 600, width: '100%', textAlign: 'center', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)', border: '1px solid rgba(211,47,47,0.1)' }}>
+              <CardContent sx={{ p: 5 }}>
+                <Typography variant="h5" sx={{ color: '#D32F2F', fontWeight: 850, mb: 1.5 }}>
+                  Today is a holiday. Booking is unavailable.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
+        {!loading && !isTodayHoliday && originalSlots.length === 0 && (
           <Card>
             <CardContent sx={{ p: 4 }}>
               <Typography variant="h6" fontWeight={850}>
@@ -112,7 +138,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Card>
         )}
 
-        {!loading && originalSlots.length > 0 && bookableSlots.length === 0 && (
+        {!loading && !isTodayHoliday && originalSlots.length > 0 && bookableSlots.length === 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <Card sx={{ maxWidth: 600, width: '100%', textAlign: 'center', borderRadius: 4, boxShadow: '0 18px 46px rgba(15,23,42,0.07)' }}>
               <CardContent sx={{ p: 5 }}>
@@ -128,7 +154,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
         )}
 
         {/* Segmented Filter */}
-        {!loading && bookableSlots.length > 0 && (
+        {!loading && !isTodayHoliday && bookableSlots.length > 0 && (
           <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-start' }}>
             <Stack
               direction="row"
@@ -179,7 +205,7 @@ export default function AvailabilitySection({ data, totals, loading }: Availabil
           </Box>
         )}
 
-        {bookableSlots.length > 0 && (
+        {!isTodayHoliday && bookableSlots.length > 0 && (
           <Grid container spacing={2.5}>
             <AnimatePresence mode="popLayout">
               {filteredSlots.map((slot) => {
