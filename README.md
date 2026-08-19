@@ -544,6 +544,8 @@ npm run dev
 
 ---
 
-## 📄 License
+## License
 
-This project is developed as a personal software engineering project. Licensing details can be referenced or configured upon formal release.
+Copyright © 2026 Yash Shelar.
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
