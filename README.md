@@ -13,7 +13,7 @@
 
 **An enterprise-grade digital reservation, token lifecycle, and queue orchestration platform engineered to eliminate physical congestion and streamline footfall in Canteen Stores Department (CSD) facilities.**
 
-[Key Features](#-key-features) • [Architecture](#-architecture) • [Workflow](#-system-workflow) • [Database Design](#-database-design) • [API Specification](#-api-specification) • [Local Setup](#-local-setup)
+[Key Features](#-key-features) • [Application Showcase](#-application-showcase) • [Architecture](#-architecture) • [Workflow](#-system-workflow) • [Database Design](#-database-design) • [API Specification](#-api-specification) • [Local Setup](#-local-setup)
 
 </div>
 
@@ -21,7 +21,7 @@
 
 ## 📌 Executive Summary
 
-The **CSD Smart Slot Booking & Token Management System** is a full-stack web application designed to solve real-world crowd management challenges at high-volume defense and paramilitary CSD canteens. 
+The **CSD Smart Slot Booking & Token Management System** is a full-stack web application developed to solve real-world crowd management challenges at high-volume defense and paramilitary CSD canteens.
 
 By replacing unorganized physical queues with **controlled 30-minute reservation windows**, **real-time capacity tracking**, **separate Grocery/Liquor quota governance**, and **QR-based gate verification**, the platform ensures transparent, predictable, and orderly service for beneficiaries while providing administrators and gate operators with complete operational visibility.
 
@@ -48,6 +48,74 @@ This system digitizes the entire lifecycle of a canteen visit:
 3. **Streamlined Counter Segregation:** Independent scheduling and capacity quotas for **Grocery** and **Liquor** counters prevent cross-congestion.
 4. **Rapid Operator Check-In/Check-Out:** Gate operators scan QR codes or search tokens to timestamp arrivals, monitor active visitor counts, and log departure durations.
 5. **Administrative Governance & Reporting:** Full audit trails, holiday calendars, dynamic booking window adjustments, and automated multi-sheet Excel reports for administrative oversight.
+
+---
+
+## 🖼️ Application Showcase
+
+### 1. Public & Customer Experience
+
+#### 🌐 Landing Page & Real-Time Availability
+*Public-facing portal showcasing operational status, active booking policies, live counter availability, and quick access actions.*
+![Landing Page](docs/screenshots/01-landing-page.png)
+
+---
+
+#### 🔐 Customer Authentication & Verification
+*Secure beneficiary sign-in enforcing role-based credential verification and registered mobile number validation.*
+![Customer Login](docs/screenshots/02-customer-login.png)
+
+---
+
+#### 👤 Customer Self-Service Dashboard
+*Central beneficiary hub displaying active passes, recent visit history, account summary, and quick booking triggers.*
+![Customer Dashboard](docs/screenshots/03-customer-dashboard.png)
+
+---
+
+#### 📅 Interactive 30-Minute Slot Reservation
+*Date-driven booking engine displaying remaining capacity per 30-minute window for Grocery and Liquor counters.*
+![Slot Booking](docs/screenshots/04-slot-booking.png)
+
+---
+
+#### 🎫 Booking Tracking & Digital Token Pass
+*Instant tracking and digital token verification pass featuring unique alphanumeric token reference and status tracking.*
+![Token & QR Pass](docs/screenshots/05-token-qr-pass.png)
+
+---
+
+### 2. Administrative Command Center
+
+#### 📊 Real-Time Operations & Analytics Dashboard
+*Executive dashboard visualizing real-time footfall KPIs, counter utilization, pending approvals, and operational trends.*
+![Admin Dashboard](docs/screenshots/06-admin-dashboard.png)
+
+---
+
+#### 👥 Member Approval & Directory Management
+*Central member registry providing administrative approval workflows for pending registrations and audit tracking.*
+![Member Management](docs/screenshots/07-member-management.png)
+
+---
+
+#### ⚙️ Slot Capacity & Schedule Configuration
+*Granular controls to configure slot timings, adjust quotas (default: 30 beneficiaries), and toggle individual counter availability.*
+![Slot Management](docs/screenshots/08-slot-management.png)
+
+---
+
+#### 📈 Reports & Multi-Format Excel Export Engine
+*Comprehensive analytics interface generating periodic occupancy summaries and one-click Apache POI Excel report downloads.*
+![Reports & Analytics](docs/screenshots/09-reports-analytics.png)
+
+---
+
+### 3. Gate Operator Desk
+
+#### 🛡️ Live Queue Monitor & Gate Check-In/Check-Out
+*Streamlined desk application for security and counter staff to search tokens, verify cards, timestamp entries, and process exits.*
+![Operator Queue](docs/screenshots/10-operator-queue.png)
 
 ---
 
@@ -143,21 +211,6 @@ graph TD
     Services --> DataJPA
     DataJPA --> Postgres
 ```
-
----
-
-## 📸 Interface Showcase
-
-> Screenshot placeholders below correspond to files in [`docs/screenshots/`](docs/screenshots/).
-
-| Screen | Description | Reference |
-| :--- | :--- | :--- |
-| **Landing Page** | Public portal displaying real-time canteen status, operating hours, and live availability metrics. | `docs/screenshots/01-landing-page.png` |
-| **Customer Portal** | Beneficiary dashboard with active token pass, recent bookings, and slot selector. | `docs/screenshots/03-customer-dashboard.png` |
-| **Slot Booking** | Date-based slot reservation interface with live capacity progress bars. | `docs/screenshots/04-slot-booking.png` |
-| **Digital QR Pass** | High-contrast QR gate pass rendered for operator scanning. | `docs/screenshots/05-token-qr-pass.png` |
-| **Admin Dashboard** | Real-time command center showing footfall analytics, counter usage, and pending reviews. | `docs/screenshots/06-admin-dashboard.png` |
-| **Operator Desk** | Rapid token lookup, gate check-in/check-out panel, and active queue monitoring. | `docs/screenshots/10-operator-queue.png` |
 
 ---
 
@@ -389,7 +442,7 @@ csd-smart-slot-booking/
 │   ├── package.json                      # Frontend Dependencies & Scripts
 │   └── vite.config.ts                    # Vite Proxy & Build Configuration
 ├── docs/                                 # Documentation & Assets
-│   └── screenshots/                      # UI Screenshots & Showcase Guide
+│   └── screenshots/                      # Real High-Resolution UI Screenshots
 └── README.md                             # Project Documentation
 ```
 
